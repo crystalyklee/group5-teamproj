@@ -4,6 +4,7 @@
 
 library(readxl)
 library(dplyr)
+library(MASS)
 
 data1 <- read_excel("transfusion data.xlsx")
 
@@ -46,7 +47,7 @@ data2 <- data2 %>%
     
     # Transfusion variables
     total_rbc_24hr = `Total 24hr RBC`,
-    massive_transfusion = `Massive Transfusion`,
+    massive_transfusion = `Massive Transfusion`, # More than 10 RBC
     rbc_0_24 = `RBC 0-24hrs`,
     rbc_24_48 = `RBC 24-48hrs`,
     rbc_48_72 = `RBC 48-72hrs`,
@@ -91,10 +92,40 @@ summary(data2)
 data2 <- data2 %>%
   mutate(
     gender = factor(gender, levels = c(FALSE, TRUE), labels = c("No", "Yes")),
-    reop_24hr = factor(reop_bleed_24hr, levels = c(FALSE, TRUE), labels = c("No", "Yes")),
+    reop_bleed_24hr = factor(reop_bleed_24hr, levels = c(FALSE, TRUE), labels = c("No", "Yes")),
     alive_30d = factor(alive_30d, levels = c("N", "Y"), labels = c("No", "Yes")),
     alive_90d = factor(alive_90d, levels = c("N", "Y"), labels = c("No", "Yes")),
     alive_12m = factor(alive_12m, levels = c("N", "Y"), labels = c("No", "Yes"))
   )
 
+# Full logistic regression model including only transfusion predictors
+full_transfusion_model <- glm(
+  alive_30d ~ massive_transfusion + total_rbc_24hr +
+    rbc_0_24 + rbc_24_48 + rbc_48_72 + rbc_72hr_total +
+    ffp_0_24 + ffp_24_48 + ffp_48_72 + ffp_72hr_total +
+    plt_0_24 + plt_24_48 + plt_48_72 + plt_72hr_total +
+    cryo_0_24 + cryo_24_48 + cryo_48_72 + cryo_72hr_total +
+    intra_ffp + intra_rbc + intra_pcc + intra_platelets + intra_cryo,
+  data = data2,
+  family = binomial
+)
 
+# View model summary
+summary(full_transfusion_model)
+
+# Calculate percentage of missing values for each column
+missing_percentage <- sapply(data2, function(x) sum(is.na(x)) / nrow(data2) * 100)
+
+# Variables to exclude based on missing data
+vars_to_exclude <- c(
+  "rbc_0_24", "rbc_24_48", "rbc_48_72",
+  "ffp_0_24", "ffp_24_48", "ffp_48_72",
+  "plt_0_24", "plt_24_48", "plt_48_72",
+  "cryo_0_24", "cryo_24_48", "cryo_48_72",
+  "death_date"
+)
+
+# Subset the dataset to exclude these variables
+data2_filtered <- data2[, !(names(data2) %in% vars_to_exclude)]
+
+# Trying logistic regression model on 
