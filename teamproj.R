@@ -128,4 +128,18 @@ vars_to_exclude <- c(
 # Subset the dataset to exclude these variables
 data2_filtered <- data2[, !(names(data2) %in% vars_to_exclude)]
 
-# Trying logistic regression model on 
+# Trying logistic regression model on alive_30d
+
+# Full log model
+full_model <- glm(
+  alive_30d ~ massive_transfusion + total_rbc_24hr + rbc_72hr_total +
+    ffp_72hr_total + plt_72hr_total + cryo_72hr_total +
+    intra_ffp + intra_rbc + intra_pcc + intra_platelets + intra_cryo,
+  data = data2_filtered,
+  family = binomial
+)
+
+# Stepwise selection based on AIC
+best_model <- stepAIC(full_model, direction = "both")
+
+summary(best_model) # total_rbc_24hr, intra_rbc
