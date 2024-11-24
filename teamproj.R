@@ -105,6 +105,21 @@ data2 <- data2 %>%
     alive_12m = factor(alive_12m, levels = c("N", "Y"), labels = c("No", "Yes"))
   )
 
+# Convert extub date into proper format due to improper loading from excel
+data2 <- data2 %>%
+  mutate(
+    extub_date = ifelse(extub_date == "?", NA, extub_date), # Replace ? with NA
+    extub_date = as.numeric(extub_date),
+    extub_date = as.POSIXct(as.Date(extub_date, origin = "1899-12-30"))
+  )
+
+# Convert death date into proper format
+data2 <- data2 %>%
+  mutate(
+    death_date = dmy(death_date, tz = "UTC")  
+  )
+
+
 # Full logistic regression model including only transfusion predictors
 full_transfusion_model <- glm(
   alive_30d ~ massive_transfusion + total_rbc_24hr +
@@ -161,10 +176,55 @@ summary(best_model) # total_rbc_24hr, intra_rbc
 
 # Survival analysis
 library(survival)
+library(lubridate)
 
-# Kaplan-Meier curve for recurrence in all patients, observe median time 
-sf <- survfit(Surv(time, outcome == "R") ~ 1, data = data1)
+# Calculate time diff between OR date and death date
+data3 <- data2 %>%
+  mutate(
+    or_death_diff = as.numeric(interval(or_date, death_date) / ddays(1)),
+    icu_death_diff = as.numeric(interval(icu_adm_date, death_date) / ddays(1)),
+    extub_death_diff = as.numeric(interval(extub_date, death_date) / ddays(1)),
+    death = if_else(is.na(death_date), 0, 1) # death indicator
+  )
+
+
+# Kaplan-Meier curve for death in all patients from OR date, observe median 
+sf <- survfit(Surv(or_death_diff, death == "1") ~ 1, data = data3)
 
 # Plot KM curve
-plot(sf,xlab = "Time From Surgery", ylab="Recurrence")
-title("Time to Breast Cancer Recurrence Since Surgery")
+plot(sf,xlab = "Time from Operation Date", ylab="Death")
+title("Time to Death Since Operation") # 50% of pop'n die at ~200 days from OR date
+
+# Kaplan-Meier curve for death in all patients from OR date, observe median 
+sf <- survfit(Surv(icu_death_diff, death == "1") ~ 1, data = data3)
+
+# Plot KM curve
+plot(sf,xlab = "Time from ICU admission Date", ylab="Death")
+title("Time to Death Since ICU admission") # 50% of pop'n die at ~120 days from OR date
+
+# Stratified Kaplan-Meier curve by transfusion for death in all patients from OR date
+
+data3 <- data3 %>%
+  mutate(
+    transfusion_status = ifelse(total_rbc_24hr > 0, "Transfusion", "No Transfusion")  
+  ) # tbh i dont know what the yellow column numbers mean, thought rbc 72hr might be better but it's not consistent with total rbc 24h??
+
+as.factor(data3$transfusion_status)
+
+sf2 <- survfit(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
+
+# Plot KM curve
+plot(sf2, xlab = "Time from Operation Date by Transfusion", ylab= "Death", col=1:2)
+title("Time to Death Since Operation by Transfusion") # 50% of pop'n die at ~120 days from OR date
+legend("topright",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2) 
+
+# Different looking plot
+library(survminer)
+ggsurvplot(sf2,
+           data = data3,
+           title = "Time to Death Since Operation by Transfusion",
+           legend.labs = c("No Transfusion", "Transfusion"),  
+           legend.title = "Transfusion Status",
+           palette = c("lightpink", "skyblue"))
+
+
