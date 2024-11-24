@@ -161,6 +161,8 @@ full_model <- glm(
   family = binomial
 )
 
+summary(full_model) # no significant predictors in the full model 
+
 # Stepwise selection based on AIC
 # See which predictors best influence 30 day mortality
 best_model <- stepAIC(full_model, direction = "both")
