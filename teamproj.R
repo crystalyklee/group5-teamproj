@@ -246,3 +246,13 @@ legend("bottomright",legend = c("No Transfusion", "Transfusion"), lty = 1, col =
 # Log rank test for death as outcome by transfusion status
 logrank <- survdiff(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
 logrank
+# no transfusion group had fewer deaths than expected
+# transfusion group had more deaths than expected
+# p > 0.05, no significant difference in survival between groups
+
+# Cox PH model
+coxmod <- coxph(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
+coxmodsummary <- summary(coxmod) 
+coxmodsummary
+# Patients who received transfusions had a 1.6x higher hazard 
+# compared to those who did not receive transfusions.
