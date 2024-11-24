@@ -214,7 +214,7 @@ as.factor(data3$transfusion_status)
 sf2 <- survfit(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
 
 # Plot KM curve
-plot(sf2, xlab = "Time from Operation Date", ylab= "Death", col=1:2)
+plot(sf2, xlab = "Time from Operation Date", ylab= "Survival", col=1:2)
 title("Time to Death Since Operation by Transfusion Status") # 50% of pop'n die at ~120 days from OR date
 legend("topright",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2) 
 
@@ -254,7 +254,7 @@ logrank
 coxmod <- coxph(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
 coxmodsummary <- summary(coxmod) 
 coxmodsummary
-# Patients who received transfusions had a 1.6x higher hazard 
+# Patients who received transfusions had a 1.6x higher hazard of death
 # compared to those who did not receive transfusions
 # p > 0.05, not significantly different
 
