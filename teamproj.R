@@ -140,6 +140,12 @@ full_model <- glm(
 )
 
 # Stepwise selection based on AIC
+# See which predictors best influence 30 day mortality
 best_model <- stepAIC(full_model, direction = "both")
 
 summary(best_model) # total_rbc_24hr, intra_rbc
+# predictors aren't significant 
+#> levels(ghdata1$gvhd)
+# [1] "No"  "Yes"
+# for every 1 unit increase in total_rbc_24hr, the log of odds for survival increases
+# for every 1 unit increase in intra_rbc, the log of odds for survival deceases
