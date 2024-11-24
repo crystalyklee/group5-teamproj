@@ -26,10 +26,13 @@ data2_var <- c(
   "Intra_Platelets", "Intra_Cryoprecipitate",
   
   # Mortality/Outcome variables
-  "Duration of ICU Stay (days)", "Date of Extubation", "Duration of Ventilation",
-  "DEATH_DATE", "ALIVE_30DAYS_YN", "ALIVE_90DAYS_YN", "ALIVE_12MTHS_YN",
+  "Duration of ICU Stay (days)", "Duration of Ventilation",
+  "ALIVE_30DAYS_YN", "ALIVE_90DAYS_YN", "ALIVE_12MTHS_YN",
   "ICU_LOS", "HOSPITAL_LOS",
-  "Need for reoperation for bleeding within 24h"
+  "Need for reoperation for bleeding within 24h",
+  
+  # Dates
+  "OR Date", "ICU Admission Date/Time", "Date of Extubation", "DEATH_DATE"
 )
 
 data2 <- data[, data2_var]
@@ -72,15 +75,19 @@ data2 <- data2 %>%
     
     # Mortality/Outcome variables
     icu_los_days = `Duration of ICU Stay (days)`,
-    extubation_date = `Date of Extubation`,
     ventilation_duration = `Duration of Ventilation`,
-    death_date = DEATH_DATE,
     alive_30d = ALIVE_30DAYS_YN,
     alive_90d = ALIVE_90DAYS_YN,
     alive_12m = ALIVE_12MTHS_YN,
     icu_los = ICU_LOS,
     hospital_los = HOSPITAL_LOS,
-    reop_bleed_24hr = `Need for reoperation for bleeding within 24h`
+    reop_bleed_24hr = `Need for reoperation for bleeding within 24h`,
+    
+    # Dates
+    or_date = `OR Date`,
+    death_date = DEATH_DATE,
+    icu_adm_date = `ICU Admission Date/Time`,
+    extub_date = `Date of Extubation`
   )
 
 
@@ -116,7 +123,7 @@ summary(full_transfusion_model)
 # Calculate percentage of missing values for each column
 missing_percentage <- sapply(data2, function(x) sum(is.na(x)) / nrow(data2) * 100)
 
-# Variables to exclude based on missing data
+# Variables to exclude based on =<30% missing data
 vars_to_exclude <- c(
   "rbc_0_24", "rbc_24_48", "rbc_48_72",
   "ffp_0_24", "ffp_24_48", "ffp_48_72",
@@ -149,3 +156,15 @@ summary(best_model) # total_rbc_24hr, intra_rbc
 # [1] "No"  "Yes"
 # for every 1 unit increase in total_rbc_24hr, the log of odds for survival increases
 # for every 1 unit increase in intra_rbc, the log of odds for survival deceases
+
+# can do the same thing for alive_90 and alive_12m 
+
+# Survival analysis
+library(survival)
+
+# Kaplan-Meier curve for recurrence in all patients, observe median time 
+sf <- survfit(Surv(time, outcome == "R") ~ 1, data = data1)
+
+# Plot KM curve
+plot(sf,xlab = "Time From Surgery", ylab="Recurrence")
+title("Time to Breast Cancer Recurrence Since Surgery")
