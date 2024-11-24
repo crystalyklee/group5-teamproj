@@ -214,8 +214,8 @@ as.factor(data3$transfusion_status)
 sf2 <- survfit(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
 
 # Plot KM curve
-plot(sf2, xlab = "Time from Operation Date by Transfusion", ylab= "Death", col=1:2)
-title("Time to Death Since Operation by Transfusion") # 50% of pop'n die at ~120 days from OR date
+plot(sf2, xlab = "Time from Operation Date", ylab= "Death", col=1:2)
+title("Time to Death Since Operation by Transfusion Status") # 50% of pop'n die at ~120 days from OR date
 legend("topright",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2) 
 
 # Different looking plot
@@ -228,3 +228,21 @@ ggsurvplot(sf2,
            palette = c("lightpink", "skyblue"))
 
 
+# Compare survival curves using Log-rank test 
+# Check PH assumption using cloglog
+
+plot(
+  survfit(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3),
+  fun = "cloglog",
+  main = "Complementary Log-Log Survival Plot by Transfusion Status", 
+  xlab = "Time from Operation Date", 
+  ylab = "Complementary Log-Log Survival Probability",
+  col=1:3)
+
+legend("bottomright",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2) 
+
+# generally parallel, can proceed
+
+# Log rank test for death as outcome by transfusion status
+logrank <- survdiff(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
+logrank
