@@ -255,4 +255,6 @@ coxmod <- coxph(Surv(or_death_diff, death == "1") ~ transfusion_status, data = d
 coxmodsummary <- summary(coxmod) 
 coxmodsummary
 # Patients who received transfusions had a 1.6x higher hazard 
-# compared to those who did not receive transfusions.
+# compared to those who did not receive transfusions
+# p > 0.05, not significantly different
+
