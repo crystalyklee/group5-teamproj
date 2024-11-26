@@ -422,3 +422,14 @@ coxmodsummary
 # Patients who received transfusions had a 1.3x higher or 80% higher hazard of death at 1 yr
 # compared to those who did not receive transfusions
 # p > 0.05, not significantly different
+
+# ASSUMPTIONS:
+# 1 year is the last follow up for patients so this is where we can impute time to event data
+
+# CONCLUSIONS:
+# probably use death as outcome, possibly alive_90d, the other alive variables aren't that insightful
+# because most patients are alive at that timepoint and it's hard to compare plots but it does
+# consistently show that people with transfusions have lower survival rates 
+# limitations are that there is a lot of time to event data missing so will have to impute with censoring info
+# can't do regular imputation bc it defeats the purpose of censored data and would distort results
+
