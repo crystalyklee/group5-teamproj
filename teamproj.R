@@ -122,12 +122,13 @@ data2 <- data2 %>%
 
 data2 <- data2 %>%
   mutate(
-    death = if_else(is.na(death_date), 0, 1) # death indicator
+    death = if_else(is.na(death_date), 0, 1), # death indicator
+    transfusion_status = ifelse(total_rbc_24hr > 0, "Transfusion", "No Transfusion")
   )
 
 # Full logistic regression model including only transfusion predictors
 full_transfusion_model <- glm(
-  alive_30d ~ massive_transfusion + total_rbc_24hr +
+  alive_30d ~ transfusion_status + massive_transfusion + total_rbc_24hr +
     rbc_0_24 + rbc_24_48 + rbc_48_72 + rbc_72hr_total +
     ffp_0_24 + ffp_24_48 + ffp_48_72 + ffp_72hr_total +
     plt_0_24 + plt_24_48 + plt_48_72 + plt_72hr_total +
@@ -157,9 +158,9 @@ data2_filtered <- data2[, !(names(data2) %in% vars_to_exclude)]
 
 # Trying logistic regression model on alive_30d
 
-# Full log model with alive_30d as outcome
+# Full log model with alive_30d as outcome excluding highly missing variables
 full_log_alive30d <- glm(
-  alive_30d ~ massive_transfusion + total_rbc_24hr + rbc_72hr_total +
+  alive_30d ~ transfusion_status + massive_transfusion + total_rbc_24hr + rbc_72hr_total +
     ffp_72hr_total + plt_72hr_total + cryo_72hr_total +
     intra_ffp + intra_rbc + intra_pcc + intra_platelets + intra_cryo,
   data = data2_filtered,
@@ -176,13 +177,14 @@ summary(best_model) # total_rbc_24hr, intra_rbc
 # predictors aren't significant 
 #> levels(ghdata1$gvhd)
 # [1] "No"  "Yes"
+# the log of odds for survival decreases in people who have transfusions compared to those who don't
 # for every 1 unit increase in total_rbc_24hr, the log of odds for survival increases
 # for every 1 unit increase in intra_rbc, the log of odds for survival deceases
 
 # can do the same thing for alive_90 and alive_12m 
 
 full_log_death <- glm(
-  death ~ massive_transfusion + total_rbc_24hr + rbc_72hr_total +
+  death ~ transfusion_status+ massive_transfusion + total_rbc_24hr + rbc_72hr_total +
     ffp_72hr_total + plt_72hr_total + cryo_72hr_total +
     intra_ffp + intra_rbc + intra_pcc + intra_platelets + intra_cryo,
   data = data2_filtered,
@@ -194,6 +196,17 @@ summary(full_log_death) # intra_ffp significant predictor
 best_model_death <- stepAIC(full_log_death, direction = "both")
 
 summary(best_model_death) # ffp_72hr_total, intra_ffp, intra_rbc significant predcitors
+# transfusion status not significant but increased log of odds for death for transfusion patients compared to no transfusion
+
+reop_log <- glm(reop_bleed_24hr ~ transfusion_status + age + bmi + total_rbc_24hr,
+                   data = data2_filtered,
+                   family = binomial)
+
+summary(reop_log) # transfusion status not significant 
+
+best_model_reop <- stepAIC(reop_log, direction = "both")
+
+summary(best_model_reop) # only total_rbc_24hr significant predictor 
 
 # Survival analysis
 library(survival)
