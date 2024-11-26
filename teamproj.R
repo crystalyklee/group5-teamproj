@@ -4,10 +4,15 @@
 library(readxl)
 library(tidyverse)
 library(mice)
+library(glmnet)
+library(pROC)
+library(tree)
 
 ###############
 ## Data Prep ##
 ###############
+
+setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
 
 d <- read_excel("transfusion data.xlsx")
 
@@ -70,6 +75,8 @@ seeds <- sample(1:1000, 5)
 
 roc_plots <- list()
 
+d1$transfusion <- as.factor(as.numeric(d1$transfusion))
+
 # For each seed, create and evaluate the models (via AUC)
 for (i in 1:length(seeds)) {
   
@@ -116,7 +123,7 @@ for (i in 1:length(seeds)) {
   model.eval <- rbind(model.eval, new_row)
   
   # Create a classification tree
-  tree.mod <- tree(recurrence ~ . ,data = d3, subset=train.I)
+  tree.mod <- tree(transfusion ~ . ,data = d1, subset=train.I)
   plot(tree.mod)
   text(tree.mod,pretty=0)
   
@@ -128,8 +135,10 @@ for (i in 1:length(seeds)) {
   best.size <- cv.res$size[which.min(cv.res$dev)]
   best.size
   
-  # Override size of 1 to avoid stump (as instructed)
-  best.size <- 2
+  # Override size of 1 to avoid stump
+  if(best.size == 1) {
+    best.size <- 2
+  }
   
   pruned <- prune.misclass(tree.mod,best=best.size)
   
@@ -138,9 +147,9 @@ for (i in 1:length(seeds)) {
   
   
   # Calculating the accuracy on the test set for the pruned tree
-  preds.tmp <- predict(pruned,newdata=d3[-train.I,],type="vector")
+  preds.tmp <- predict(pruned,newdata=d1[-train.I,],type="vector")
   pred.probs.tree <- as.numeric(preds.tmp[,2])
-  myroc <- roc(recurrence ~ pred.probs.tree, data=d3[-train.I,])
+  myroc <- roc(transfusion ~ pred.probs.tree, data=d1[-train.I,])
   plot(myroc)
   myroc$auc
   
@@ -149,9 +158,9 @@ for (i in 1:length(seeds)) {
   model.eval <- rbind(model.eval, new_row)
   
   # Calculate the accuracy on the test set for the unpruned tree
-  preds.tmp <- predict(tree.mod,newdata=d3[-train.I,],type="vector")
+  preds.tmp <- predict(tree.mod,newdata=d1[-train.I,],type="vector")
   pred.probs.tree <- as.numeric(preds.tmp[,2])
-  myroc <- roc(recurrence ~ pred.probs.tree, data=d3[-train.I,])
+  myroc <- roc(transfusion ~ pred.probs.tree, data=d1[-train.I,])
   plot(myroc)
   myroc$auc
   
@@ -164,3 +173,56 @@ for (i in 1:length(seeds)) {
 ggplot(model.eval, aes(x = trial, y = auc, fill = model)) +
   geom_bar(stat = "identity", position = position_dodge(), color = "black") +
   theme_classic()
+
+############################
+## Regression Lasso Model ##
+############################
+
+d2 <- d_imp[d_imp$Total_24hr_RBC != 0,-48]
+
+# Obtain a matrix with the feature values
+x <- model.matrix(Total_24hr_RBC ~ . , d2)[,-1]
+
+# Create a vector with the response values
+y <- d2$Total_24hr_RBC
+
+# Train the models
+lasso.mod <- glmnet(x,y,family="gaussian")
+
+# Plot the results against different values of log(lambda)
+plot(lasso.mod,xvar = "lambda")
+
+# for different values of lambda we are getting different coefficient estimates (weights)
+# We need to decide on an optimal value for lambda
+# We will do it by performing cross-validation
+
+set.seed(123)
+
+cv.lasso <- cv.glmnet(x,y,nfolds = 5)
+plot(cv.lasso)
+
+# We can extract the value that gives the lowest Cross-validated Mean Squared Error
+cv.lasso$lambda.min
+
+# The MSE for that value of lambda
+print(cv.lasso)
+
+# We can see the value of the features that stay in the model when using the optimal lambda
+coef.min <- coef(cv.lasso, s = "lambda.min")
+coef.min
+
+# List of selected predictors, those that stayed in the model
+rownames(coef.min)[coef.min[,1] != 0][-1]
+
+## MERP ##
+deviance_explained <- cv.lasso$glmnet.fit$dev.ratio[cv.lasso$lambda == cv.lasso$lambda.min]
+deviance_explained
+
+lin.mod <- lm(Total_24hr_RBC ~ ., data=d2)
+summary(lin.mod)
+
+lin.mod2 <- lm(Total_24hr_RBC ~ Pre_Hb + Pre_Hct + Pre_Platelets + Pre_PT + Pre_INR + Pre_PTT + Pre_Fibrinogen + Pre_Creatinine + Blood_Loss + Fluid_Balance + Preoperative_ECLS + Age + BMI + COPD + Coronary_Artery_Disease + Hypertension + Renal_Failure + Preoperative_ECLS + Urine_Output , data=d2)
+summary(lin.mod2)
+
+lin.mod3 <- lm(log(Total_24hr_RBC) ~ Pre_Hb + Pre_Hct + Pre_Platelets + Pre_PT + Pre_INR + Pre_PTT + Pre_Fibrinogen + Pre_Creatinine + Blood_Loss + Fluid_Balance, data=d2)
+summary(lin.mod3)
