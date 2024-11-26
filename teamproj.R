@@ -642,3 +642,15 @@ print(shapiro.test(hospital_transfusion_log))
 
 # a bit better but still not normal, will stick to non-parametric
 
+####CHI-SQUARED TEST FOR ASSESSING REOPERATION STATUS####
+
+reop_table <- table(data2_filtered$reop_bleed_24hr, data2_filtered$transfusion_status)
+reop_table # does not meet assumptions 
+
+# Chi-square test
+chisq_test <- chisq.test(reop_table)
+chisq_test # p > 0.05
+
+# Fisher's exact test
+fisher.test(reop_table)
+chisq_test # p > 0.05
