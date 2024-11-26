@@ -304,7 +304,102 @@ logrank
 coxmod <- coxph(Surv(or_death_diff, alive_30d == "Yes") ~ transfusion_status, data = data3)
 coxmodsummary <- summary(coxmod) 
 coxmodsummary
-# Patients who received transfusions had a 1.3x higher or 60% higher hazard of survival at 30 days
+# Patients who received transfusions had a 1.3x higher or 30% higher hazard of survival at 30 days
 # compared to those who did not receive transfusions
 # p > 0.05, not significantly different
 
+######## TRYING SURVIVAL ANALYSIS AND COX MODEL ON ALIVE_90D AS OUTCOME ##########
+
+# Kaplan-Meier curve for death at 30d in all patients from OR date, observe median 
+sf5 <- survfit(Surv(or_death_diff, alive_90d == "Yes") ~ 1, data = data3)
+
+# Plot KM curve
+plot(sf5,xlab = "Time from Operation Date", ylab="Death at 90 days")
+title("Time to Death Since Operation") # 50% of pop'n die at 90 days ~250 days from OR date
+
+# Stratified Kaplan-Meier curve by transfusion for death in all patients from OR date
+
+sf6 <- survfit(Surv(or_death_diff, alive_90d == "Yes") ~ transfusion_status, data = data3)
+
+# Plot KM curve
+plot(sf6, xlab = "Time from Operation Date", ylab= "Death at 90 days", col=1:2)
+title("Time to Death at 90 Days Since Operation by Transfusion Status") 
+legend("topright",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2) 
+
+# Compare survival curves using Log-rank test 
+# Check PH assumption using cloglog
+
+plot(
+  survfit(Surv(or_death_diff, alive_90d == "Yes") ~ transfusion_status, data = data3),
+  fun = "cloglog",
+  main = "Complementary Log-Log Survival Plot by Transfusion Status", 
+  xlab = "Time from Operation Date", 
+  ylab = "Complementary Log-Log Survival Probability",
+  col=1:3)
+
+legend("bottomleft",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2) 
+
+# generally parallel, some violation, oh well
+
+# Log rank test for death as outcome by transfusion status
+logrank <- survdiff(Surv(or_death_diff, alive_90d == "Yes") ~ transfusion_status, data = data3)
+logrank
+# no transfusion group had fewer deaths than expected
+# transfusion group had more deaths than expected
+# p > 0.05, no significant difference in survival between groups
+
+# Cox PH model
+coxmod <- coxph(Surv(or_death_diff, alive_90d == "Yes") ~ transfusion_status, data = data3)
+coxmodsummary <- summary(coxmod) 
+coxmodsummary
+# Patients who received transfusions had a 1.3x higher or 30% higher hazard of survival at 90 days
+# compared to those who did not receive transfusions
+# p > 0.05, not significantly different
+
+######## TRYING SURVIVAL ANALYSIS AND COX MODEL ON ALIVE_90D AS OUTCOME ##########
+
+# Kaplan-Meier curve for death at 1 yr in all patients from OR date, observe median 
+sf7 <- survfit(Surv(or_death_diff, alive_12m == "Yes") ~ 1, data = data3)
+
+# Plot KM curve
+plot(sf7,xlab = "Time from Operation Date", ylab="Death at 1 yr")
+title("Time to Death Since Operation") # 50% of pop'n die at 90 days ~500 days from OR date
+
+# Stratified Kaplan-Meier curve by transfusion for death in all patients from OR date
+
+sf8 <- survfit(Surv(or_death_diff, alive_12m == "Yes") ~ transfusion_status, data = data3)
+
+# Plot KM curve
+plot(sf8, xlab = "Time from Operation Date", ylab= "Death at 1 yr", col=1:2)
+title("Time to Death at 90 Days Since Operation by Transfusion Status") 
+legend("topright",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2) 
+
+# Compare survival curves using Log-rank test 
+# Check PH assumption using cloglog
+
+plot(
+  survfit(Surv(or_death_diff, alive_12m == "Yes") ~ transfusion_status, data = data3),
+  fun = "cloglog",
+  main = "Complementary Log-Log Survival Plot by Transfusion Status", 
+  xlab = "Time from Operation Date", 
+  ylab = "Complementary Log-Log Survival Probability",
+  col=1:3)
+
+legend("bottomleft",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2) 
+
+# i think parallel??? looks really weird
+
+# Log rank test for death as outcome by transfusion status
+logrank <- survdiff(Surv(or_death_diff, alive_21m == "Yes") ~ transfusion_status, data = data3)
+logrank
+# no transfusion group had fewer deaths than expected
+# transfusion group had more deaths than expected
+# p > 0.05, no significant difference in survival between groups
+
+# Cox PH model
+coxmod <- coxph(Surv(or_death_diff, alive_12m == "Yes") ~ transfusion_status, data = data3)
+coxmodsummary <- summary(coxmod) 
+coxmodsummary
+# Patients who received transfusions had a 1.2x higher or 20% higher hazard of survival at 1 yr
+# compared to those who did not receive transfusions
+# p > 0.05, not significantly different
