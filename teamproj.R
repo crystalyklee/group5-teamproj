@@ -5,6 +5,7 @@
 library(readxl)
 library(dplyr)
 library(MASS)
+library(ggplot2)
 
 data1 <- read_excel("transfusion data.xlsx")
 
@@ -491,7 +492,31 @@ t_test_hospital <- t.test(
 
 t_test_hospital # no significant difference between hospital los
 
-library(ggplot2)
+# Non-parametric tests - wilcox rank sum for independent samples
+wilcox_icu <- wilcox.test(
+  icu_los ~ transfusion_status,
+  data = data3
+)
+
+wilcox_icu # p < 0.05 significant difference
+
+wilcox_hospital <- wilcox.test(
+  hospital_los ~ transfusion_status,
+  data = data3
+)
+
+wilcox_hospital # p < 0.05 significant difference
+
+data3 %>%
+  group_by(transfusion_status) %>%
+  summarize(
+    median_hospital_los = median(hospital_los, na.rm = TRUE),
+    mean_hospital_los = mean(hospital_los, na.rm = TRUE),
+    count = n()
+  )
+
+# patients who received blood transfusions had a significantly longer hospital 
+# length of stay compared to those who did not
 
 # ICU LOS boxplot
 ggplot(data3, aes(x = transfusion_status, y = icu_los, fill = transfusion_status)) +
