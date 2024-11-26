@@ -120,6 +120,10 @@ data2 <- data2 %>%
     death_date = dmy(death_date, tz = "UTC")  
   )
 
+data2 <- data2 %>%
+  mutate(
+    death = if_else(is.na(death_date), 0, 1) # death indicator
+  )
 
 # Full logistic regression model including only transfusion predictors
 full_transfusion_model <- glm(
@@ -139,7 +143,7 @@ summary(full_transfusion_model)
 # Calculate percentage of missing values for each column
 missing_percentage <- sapply(data2, function(x) sum(is.na(x)) / nrow(data2) * 100)
 
-# Variables to exclude based on =<30% missing data
+# Variables to exclude based on =>30% missing data
 vars_to_exclude <- c(
   "rbc_0_24", "rbc_24_48", "rbc_48_72",
   "ffp_0_24", "ffp_24_48", "ffp_48_72",
@@ -153,8 +157,8 @@ data2_filtered <- data2[, !(names(data2) %in% vars_to_exclude)]
 
 # Trying logistic regression model on alive_30d
 
-# Full log model
-full_model <- glm(
+# Full log model with alive_30d as outcome
+full_log_alive30d <- glm(
   alive_30d ~ massive_transfusion + total_rbc_24hr + rbc_72hr_total +
     ffp_72hr_total + plt_72hr_total + cryo_72hr_total +
     intra_ffp + intra_rbc + intra_pcc + intra_platelets + intra_cryo,
@@ -162,11 +166,11 @@ full_model <- glm(
   family = binomial
 )
 
-summary(full_model) # no significant predictors in the full model 
+summary(full_log_alive30d ) # no significant predictors in the full model 
 
 # Stepwise selection based on AIC
 # See which predictors best influence 30 day mortality
-best_model <- stepAIC(full_model, direction = "both")
+best_model <- stepAIC(full_log_alive30d, direction = "both")
 
 summary(best_model) # total_rbc_24hr, intra_rbc
 # predictors aren't significant 
@@ -176,6 +180,20 @@ summary(best_model) # total_rbc_24hr, intra_rbc
 # for every 1 unit increase in intra_rbc, the log of odds for survival deceases
 
 # can do the same thing for alive_90 and alive_12m 
+
+full_log_death <- glm(
+  death ~ massive_transfusion + total_rbc_24hr + rbc_72hr_total +
+    ffp_72hr_total + plt_72hr_total + cryo_72hr_total +
+    intra_ffp + intra_rbc + intra_pcc + intra_platelets + intra_cryo,
+  data = data2_filtered,
+  family = binomial
+)
+
+summary(full_log_death) # intra_ffp significant predictor
+
+best_model_death <- stepAIC(full_log_death, direction = "both")
+
+summary(best_model_death) # ffp_72hr_total, intra_ffp, intra_rbc significant predcitors
 
 # Survival analysis
 library(survival)
@@ -528,4 +546,86 @@ ggplot(data3, aes(x = transfusion_status, y = icu_los, fill = transfusion_status
 ggplot(data3, aes(x = transfusion_status, y = hospital_los, fill = transfusion_status)) +
   geom_boxplot() +
   labs(title = "Hospital Length of Stay by Transfusion Status", x = "Transfusion Status", y = "Hospital Length of Stay (days)") +
-  theme_minimal()
+  theme_minimal
+
+# Try without outliers
+
+iqr <- IQR(data3$icu_los, na.rm = TRUE)
+upper_bound <- quantile(data3$icu_los, 0.75, na.rm = TRUE) + (3 * iqr)
+
+iqr <- IQR(data3$hospital_los, na.rm = TRUE)
+upper_bound <- quantile(data3$hospital_los, 0.75, na.rm = TRUE) + (3 * iqr)
+
+data_no_outl <- data3 %>%
+  filter(hospital_los <= upper_bound)
+
+wilcox_icu_no_outl <- wilcox.test(
+  icu_los ~ transfusion_status,
+  data = data_no_outl
+)
+
+wilcox_icu_no_outl # still significant
+
+wilcox_hospital_no_outl <- wilcox.test(
+  hospital_los ~ transfusion_status,
+  data = data_no_outl
+)
+
+wilcox_hospital_no_outl # still significant 
+
+# Try log transformation and re-run t-test
+
+data_los_log <- data3 %>%
+  mutate(
+    icu_los_log = log(icu_los + 1), # Add 1 to avoid log(0)
+    hospital_los_log = log(hospital_los + 1)
+  )
+
+icu_no_transfusion_log <- data_los_log %>%
+  filter(transfusion_status == "No Transfusion") %>%
+  pull(icu_los_log)
+
+icu_transfusion_log <- data_los_log %>%
+  filter(transfusion_status == "Transfusion") %>%
+  pull(icu_los_log)
+
+# No Transfusion group for ICU LOS
+hist(icu_no_transfusion_log, main = "Histogram: Log ICU LOS (No Transfusion)", 
+     xlab = "Log ICU LOS", col = "lightblue", breaks = 10)
+qqnorm(icu_no_transfusion_log, main = "Q-Q Plot: Log ICU LOS (No Transfusion)")
+qqline(icu_no_transfusion_log, col = "red")
+
+# Transfusion group for ICU LOS
+hist(icu_transfusion_log, main = "Histogram: Log ICU LOS (Transfusion)", 
+     xlab = "Log ICU LOS", col = "lightblue", breaks = 10)
+qqnorm(icu_transfusion_log, main = "Q-Q Plot: Log ICU LOS (Transfusion)")
+qqline(icu_transfusion_log, col = "red")
+
+hospital_no_transfusion_log <- data_los_log %>%
+  filter(transfusion_status == "No Transfusion") %>%
+  pull(hospital_los_log)
+
+hospital_transfusion_log <- data_los_log %>%
+  filter(transfusion_status == "Transfusion") %>%
+  pull(hospital_los_log)
+
+# No Transfusion group for Hospital LOS
+hist(hospital_no_transfusion_log, main = "Histogram: Log Hospital LOS (No Transfusion)", 
+     xlab = "Log Hospital LOS", col = "lightblue", breaks = 10)
+qqnorm(hospital_no_transfusion_log, main = "Q-Q Plot: Log Hospital LOS (No Transfusion)")
+qqline(hospital_no_transfusion_log, col = "red")
+
+# Transfusion group for Hospital LOS
+hist(hospital_transfusion_log, main = "Histogram: Log Hospital LOS (Transfusion)", 
+     xlab = "Log Hospital LOS", col = "lightblue", breaks = 10)
+qqnorm(hospital_transfusion_log, main = "Q-Q Plot: Log Hospital LOS (Transfusion)")
+qqline(hospital_transfusion_log, col = "red")
+
+print(shapiro.test(icu_no_transfusion_log))
+print(shapiro.test(icu_transfusion_log))
+
+print(shapiro.test(hospital_no_transfusion_log))
+print(shapiro.test(hospital_transfusion_log))
+
+# a bit better but still not normal, will stick to non-parametric
+
