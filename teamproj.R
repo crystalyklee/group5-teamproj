@@ -433,3 +433,74 @@ coxmodsummary
 # limitations are that there is a lot of time to event data missing so will have to impute with censoring info
 # can't do regular imputation bc it defeats the purpose of censored data and would distort results
 
+#########T-TESTS COMPARING ICU AND HOSPITAL LENGTH OF STAY#############
+
+# Assess normality
+
+# No Transfusion 
+icu_no_transfusion <- data3 %>%
+  filter(transfusion_status == "No Transfusion") %>%
+  pull(icu_los)
+
+icu_transfusion <- data3 %>%
+  filter(transfusion_status == "Transfusion") %>%
+  pull(icu_los)
+
+hist(icu_no_transfusion, main = "Histogram: ICU LOS (No Transfusion)", xlab = "ICU LOS (days)", col = "lightblue", breaks = 10) # very right skewed
+qqnorm(icu_no_transfusion, main = "Q-Q Plot: ICU LOS (No Transfusion)")
+qqline(icu_no_transfusion, col = "red")
+
+# Transfusion 
+hist(icu_transfusion, main = "Histogram: ICU LOS (Transfusion)", xlab = "ICU LOS (days)", col = "lightblue", breaks = 10) # very right skewed
+qqnorm(icu_transfusion, main = "Q-Q Plot: ICU LOS (Transfusion)")
+qqline(icu_transfusion, col = "red")
+
+hospital_no_transfusion <- data3 %>%
+  filter(transfusion_status == "No Transfusion") %>%
+  pull(hospital_los)
+
+hospital_transfusion <- data3 %>%
+  filter(transfusion_status == "Transfusion") %>%
+  pull(hospital_los)
+
+# No Transfusion 
+hist(hospital_no_transfusion, main = "Histogram: Hospital LOS (No Transfusion)", xlab = "Hospital LOS (days)", col = "lightblue", breaks = 10) # very right skewed
+qqnorm(hospital_no_transfusion, main = "Q-Q Plot: Hospital LOS (No Transfusion)")
+qqline(hospital_no_transfusion, col = "red")
+
+# Transfusion 
+hist(hospital_transfusion, main = "Histogram: Hospital LOS (Transfusion)", xlab = "Hospital LOS (days)", col = "lightblue", breaks = 10) # very right skewed
+qqnorm(hospital_transfusion, main = "Q-Q Plot: Hospital LOS (Transfusion)")
+qqline(hospital_transfusion, col = "red")
+
+# two sample t-test for icu los
+t_test_icu <- t.test(
+  icu_los ~ transfusion_status,
+  data = data3,
+  var.equal = FALSE # assume unequal variance
+)
+
+t_test_icu # no significant difference between icu los
+
+# two sample t-test for hospital los
+t_test_hospital <- t.test(
+  hospital_los ~ transfusion_status,
+  data = data3,
+  var.equal = FALSE # assuming unequal variances
+)
+
+t_test_hospital # no significant difference between hospital los
+
+library(ggplot2)
+
+# ICU LOS boxplot
+ggplot(data3, aes(x = transfusion_status, y = icu_los, fill = transfusion_status)) +
+  geom_boxplot() +
+  labs(title = "ICU Length of Stay by Transfusion Status", x = "Transfusion Status", y = "ICU Length of Stay (days)") +
+  theme_minimal()
+
+# Hospital LOS boxplot
+ggplot(data3, aes(x = transfusion_status, y = hospital_los, fill = transfusion_status)) +
+  geom_boxplot() +
+  labs(title = "Hospital Length of Stay by Transfusion Status", x = "Transfusion Status", y = "Hospital Length of Stay (days)") +
+  theme_minimal()
