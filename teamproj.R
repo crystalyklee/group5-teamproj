@@ -76,7 +76,7 @@ summary(d_imp)
 ###########################################
 
 # Create a version of the data without the RBC count because that is not a predictor
-d1 <- d_imp[,-47]
+d1 <- d_imp[,-45]
 
 # Create an empty dataframe to store the AUC for each model and respective replicates
 model.eval <- data.frame(model = NA, trial = NA, auc = NA)[0,]
@@ -123,7 +123,6 @@ for (i in 1:length(seeds)) {
   # Plot the ROC curve
   myroc <- roc(transfusion ~ pred.lasso, data=d1[-train.I,])
   ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve with Diagonal Line")
-  plot(myroc, main = "Test")
   
   # Extracting the Area Under the Curve, a measure of discrimination
   auc.lasso <- myroc$auc
@@ -187,96 +186,57 @@ ggplot(model.eval, aes(x = trial, y = auc, fill = model)) +
 
 # It seems the lasso classification model is consistently better than the tree models
 
-##################################################
-## Create Lasso Model for each Imputed Data Set ##
-##################################################
+########################
+## Create Lasso Model ##
+########################
 
-# Now, we can use the multiple imputations to see if the relevant predictors are consistent
-# across each imputation
+# See the results of the lasso model 
 
-# Start by initializing a dataframe where we can keep the results
-predictor_results <- data.frame(
-  predictor = character(), 
-  matrix(NA, nrow = 0, ncol = imp$m, dimnames = list(NULL, paste0("dataset_", 1:imp$m))),
-  stringsAsFactors = FALSE
-)
+# Extract the value of lambda
+cv.lasso$lambda.min
 
-# We can loop through each of the 5 imputed data sets, create a lasso model for each,
-# and see if the resulting models are consistent with each other
+# Find the predictors in the model
+coef(cv.lasso, s = "lambda.min")
+coef_min_class <- coef(cv.lasso, s = "lambda.min")
 
-for(i in 1:imp$m) {
-  
-  # Extract the imputed data set
-  d.imp <- complete(imp, i)
-  
-  # Drop the number of RBC units column since we do not want it as a potential predictor
-  d.imp <- d.imp[, -47]
-  
-  # Randomly split the data in a 7:3 ratio for training and testing respectively
-  train.I <- sample(nrow(d.imp),round(nrow(d.imp)/(10/7)))
-  
-  # Create model matrix, exclude intercept column
-  x <- model.matrix(transfusion ~.,d.imp)[train.I,-1]
-  
-  # Create a vector with the response values
-  y <- d.imp$transfusion[train.I]
-  
-  # Fit the model
-  lasso.mod <- glmnet(x,y,family="binomial")
-  
-  # Plot coefficient weights for different values of lambda
-  plot(lasso.mod,label = T, xvar = "lambda")
-  
-  # Use cross validation (k=5) to determine the optimal value of lambda
-  cv.lasso <- cv.glmnet(x,y,alpha=1,family = "binomial", type.measure = "auc", nfolds = 5)
-  plot(cv.lasso)
-  
-  # Extract the value of lambda
-  cv.lasso$lambda.min
-  
-  # Find the predictors in the model that are non-zero
-  coef_lasso <- coef(cv.lasso, s = "lambda.min")
-  predictors <- rownames(coef_lasso)[coef_lasso[, 1] != 0]
-  coefficients <- coef_lasso[coef_lasso[, 1] != 0]
-  
-  # Add predictors and coefficients to the results data frame
-  for (j in seq_along(predictors)) {
-    predictor <- predictors[j]
-    coefficient <- coefficients[j]
-    
-    # Check if predictor is already in the data frame
-    if (!(predictor %in% predictor_results$predictor)) {
-      # Add a new row for the predictor
-      predictor_results <- rbind(
-        predictor_results, 
-        data.frame(predictor = predictor, stringsAsFactors = FALSE)
-      )
-    }
-    
-    # Update the coefficient for the current dataset
-    predictor_results[predictor_results$predictor == predictor, paste0("dataset_", i)] <- coefficient
-  }
-  
-  # Create predictions for the test set
-  pred.lasso <- as.numeric(predict(lasso.mod, newx = model.matrix(transfusion ~.,d.imp)[-train.I,-1], s=cv.lasso$lambda.min, type = "response"))
-  
-  # Plot the ROC curve
-  myroc <- roc(transfusion ~ pred.lasso, data=d.imp[-train.I,])
-  ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve with Diagonal Line")
-  plot(myroc, main = "Test")
-  
-  # Extracting the Area Under the Curve, a measure of discrimination
-  auc.lasso <- myroc$auc
-  auc.lasso
-  
-}
+# Plot ROC
+ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve with Diagonal Line")
 
+# Determine auc
+auc.lasso
+
+# Plot the coefficients
+
+# Convert the sparse matrix to a dataframe
+coef_df_class <- as.data.frame(as.matrix(coef_min_class))
+
+# Name the columns appropriately
+colnames(coef_df_class) <- "Coefficient"
+
+# Add the predictor names as a column
+coef_df_class$Predictor <- rownames(coef_df_class)
+
+# Filter for non-zero coefficients
+coef_df_class <- coef_df_class[coef_df_class$Coefficient != 0, ]
+
+# Sort predictors by magnitude of coefficients (optional)
+coef_df_class <- coef_df_class[order(abs(coef_df_class$Coefficient), decreasing = TRUE), ]
+
+# Reset row names
+rownames(coef_df_class) <- NULL
+
+# Plot the coefficients for the classification model
+ggplot(coef_df_class, aes(x = reorder(Predictor, Coefficient), y = Coefficient, fill = Coefficient > 0)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Predictor", y = "Coefficient", title = "LASSO Classification Model Coefficients")
 
 ############################
 ## Regression Lasso Model ##
 ############################
 
-d2 <- d_imp[d_imp$Total_24hr_RBC != 0,-48]
+d2 <- d_imp[d_imp$Total_24hr_RBC != 0,-46]
 
 # Obtain a matrix with the feature values
 x <- model.matrix(Total_24hr_RBC ~ . , d2)[,-1]
@@ -296,31 +256,44 @@ plot(lasso.mod,xvar = "lambda")
 
 set.seed(123)
 
-cv.lasso <- cv.glmnet(x,y,nfolds = 5)
-plot(cv.lasso)
+cv.lasso.reg <- cv.glmnet(x,y,nfolds = 5)
+plot(cv.lasso.reg)
 
 # We can extract the value that gives the lowest Cross-validated Mean Squared Error
-cv.lasso$lambda.min
+cv.lasso.reg$lambda.min
 
 # The MSE for that value of lambda
-print(cv.lasso)
+print(cv.lasso.reg)
 
 # We can see the value of the features that stay in the model when using the optimal lambda
-coef.min <- coef(cv.lasso, s = "lambda.min")
-coef.min
+coef_min_reg <- coef(cv.lasso.reg, s = "lambda.min")
 
 # List of selected predictors, those that stayed in the model
-rownames(coef.min)[coef.min[,1] != 0][-1]
+rownames(coef_min_reg)[coef_min_reg[,1] != 0][-1]
 
-## Experimenting ##
-deviance_explained <- cv.lasso$glmnet.fit$dev.ratio[cv.lasso$lambda == cv.lasso$lambda.min]
-deviance_explained
+# Plot the coefficients
 
-lin.mod <- lm(Total_24hr_RBC ~ ., data=d2)
-summary(lin.mod)
+# Convert the sparse matrix to a dataframe
+coef_df_reg <- as.data.frame(as.matrix(coef_min_reg))
 
-lin.mod2 <- lm(Total_24hr_RBC ~ Pre_Hb + Pre_Hct + Pre_Platelets + Pre_PT + Pre_INR + Pre_PTT + Pre_Fibrinogen + Pre_Creatinine + Blood_Loss + Fluid_Balance + Preoperative_ECLS + Age + BMI + COPD + Coronary_Artery_Disease + Hypertension + Renal_Failure + Preoperative_ECLS + Urine_Output , data=d2)
-summary(lin.mod2)
+# Name the columns appropriately
+colnames(coef_df_reg) <- "Coefficient"
 
-lin.mod3 <- lm(log(Total_24hr_RBC) ~ Pre_Hb + Pre_Hct + Pre_Platelets + Pre_PT + Pre_INR + Pre_PTT + Pre_Fibrinogen + Pre_Creatinine + Blood_Loss + Fluid_Balance, data=d2)
-summary(lin.mod3)
+# Add the predictor names as a column
+coef_df_reg$Predictor <- rownames(coef_df_reg)
+
+# Filter for non-zero coefficients
+coef_df_reg <- coef_df_reg[coef_df_reg$Coefficient != 0, ]
+
+# Sort predictors by magnitude of coefficients (optional)
+coef_df_reg <- coef_df_reg[order(abs(coef_df_reg$Coefficient), decreasing = TRUE), ]
+
+# Reset row names
+rownames(coef_df_reg) <- NULL
+
+# Plot the coefficients for the regression model
+ggplot(coef_df_reg, aes(x = reorder(Predictor, Coefficient), y = Coefficient, fill = Coefficient > 0)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Predictor", y = "Coefficient", title = "LASSO Regression Model Coefficients")
