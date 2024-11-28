@@ -8,6 +8,9 @@ library(glmnet)
 library(pROC)
 library(tree)
 library(visdat)
+library(gtsummary)
+library(gridExtra)
+library(grid)
 
 ###############
 ## Data Prep ##
@@ -70,6 +73,270 @@ names(d) <- gsub("[^A-Za-z0-9]+", "_", names(d))
 imp <- mice(d, m = 1, seed = 7, print = F)
 d_imp <- complete(imp, 1)
 summary(d_imp)
+
+#########
+## EDA ##
+#########
+
+# Will use the unimputed dataset here
+
+# Create a summary table for baseline/demographic characteristics
+tbl_summary(
+  d,
+  missing = "ifany",
+  statistic = list(
+    all_continuous() ~ "{mean} ({sd})",
+    all_categorical() ~ "{n} ({p}%)"),
+  label = list(
+    Age ~ "Age (years)",
+    Gender_male_ ~ "Gender (male)",
+    BMI ~ "Body Mass Index",
+    Type ~ "Transplant Type",
+    DCD_vs_DBD ~ "Donor Death Type",
+    First_Lung_Transplant ~ "First Lung Transplant",
+    LAS_score ~ "LAS Score",
+    transfusion ~ "Recieved Transfusion"),
+  include = c(Gender_male_, Age, BMI, Type, DCD_vs_DBD, First_Lung_Transplant, LAS_score, transfusion)) %>%
+  italicize_levels() %>% 
+  bold_labels()
+
+# Create a table summarizing commodities
+tbl_summary(
+  d,
+  missing = "ifany",
+  statistic = list(
+    all_continuous() ~ "{mean} ({sd})",
+    all_categorical() ~ "{n} ({p}%)"),
+  label = list(
+    COPD ~ "Chronic Obstructive Pulmonary Disease",
+    alpha1_Antitrypsin_Deficiency ~ "Alpha-1 Antitrypsin Deficiency",
+    Cystic_Fibrosis ~ "Cystic Fibrosis",
+    Idiopathic_Pulmonary_Hypertension ~ "Idiopathic Pulmonary Hypertension",
+    Interstitial_Lung_Disease ~ "Interstitial Lung Disease",
+    Pulm_Other ~ "Other Pulmonary Conditions",
+    Coronary_Artery_Disease ~ "Coronary Artery Disease",
+    Hypertension ~ "Hypertension",
+    Diabetes_insulin_ ~ "Diabetes (Insulin-Dependent)",
+    Diabetes_diet_OHGs_ ~ "Diabetes (Diet/Oral Hypoglycemics)",
+    GERD_PUD ~ "Gastroesophageal Reflux Disease/Peptic Ulcer Disease",
+    Renal_Failure ~ "Renal Failure",
+    Stroke_CVA ~ "Stroke (CVA)",
+    Liver_Disease ~ "Liver Disease",
+    Thyroid_Disease ~ "Thyroid Disease"
+  ),
+  include = c(COPD, alpha1_Antitrypsin_Deficiency, Cystic_Fibrosis, 
+              Idiopathic_Pulmonary_Hypertension, Interstitial_Lung_Disease, 
+              Pulm_Other, Coronary_Artery_Disease, Hypertension, 
+              Diabetes_insulin_, Diabetes_diet_OHGs_, GERD_PUD, Renal_Failure, 
+              Stroke_CVA, Liver_Disease, Thyroid_Disease)
+) %>%
+  italicize_levels() %>% 
+  bold_labels()
+
+# Create summary table of Pre- and Intra-operative and Blood characteristics
+tbl_summary(
+  d,
+  missing = "ifany",
+  statistic = list(
+    all_continuous() ~ "{mean} ({sd})",
+    all_categorical() ~ "{n} ({p}%)"),
+  label = list(
+    Pre_Hb ~ "Preoperative Hemoglobin (g/L)",
+    Pre_Hct ~ "Preoperative Hematocrit (%)",
+    Pre_Platelets ~ "Preoperative Platelets (×10⁹/L)",
+    Pre_PT ~ "Preoperative Prothrombin Time (s)",
+    Pre_INR ~ "Preoperative INR",
+    Pre_PTT ~ "Preoperative PTT (s)",
+    Pre_Creatinine ~ "Preoperative Creatinine (mg/dL)",
+    Intraoperative_ECLS ~ "Intraoperative ECLS (ECMO)",
+    ECLS_ECMO ~ "ECLS ECMO",
+    ECLS_CPB ~ "ECLS Cardiopulmonary Bypass",
+    Intra_Albumin_5_mL_ ~ "Intraoperative Albumin (5mL)",
+    Intra_Crystalloid_mL_ ~ "Intraoperative Crystalloid (mL)",
+    Intra_Cell_Saver_returned_mL_ ~ "Intraoperative Cell Saver Returned (mL)",
+    Blood_Loss ~ "Blood Loss (mL)",
+    Urine_Output ~ "Urine Output (mL)",
+    Fluid_Balance ~ "Fluid Balance (mL)",
+    Tranexamic_Acid_Used ~ "Tranexamic Acid Used (1 = Yes)"
+  ),
+  include = c(Pre_Hb, Pre_Hct, Pre_Platelets, Pre_PT, Pre_INR, Pre_PTT, Pre_Creatinine, 
+              Intraoperative_ECLS, ECLS_ECMO, ECLS_CPB, Intra_Albumin_5_mL_, 
+              Intra_Crystalloid_mL_, Intra_Cell_Saver_returned_mL_, Blood_Loss,
+              Urine_Output, Fluid_Balance, Tranexamic_Acid_Used)
+) %>%
+  italicize_levels() %>%
+  bold_labels()
+
+## EDA Plots ##
+
+# Only select variables will be plotted. Visualizing binary variables is not that helpful.
+
+# Bar plot - Type, combined for commodities
+ggplot(data = d, aes(x = Type)) +
+  geom_bar(col = "black", fill = "lightblue", stat = "count") +
+  geom_text(stat = "count", aes(label = ..count..), vjust = -0.5, size = 5) + 
+  scale_y_continuous(limits = c(0, 200)) +
+  labs(
+    x = "Transplant Type",
+    y = "Frequency",
+    title = "Distribution of Lung Transplant Types"
+  ) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Create dataframe of comorbidities
+
+# Reshape data to long format
+d_long <- d %>%
+  pivot_longer(cols = starts_with("COPD"):starts_with("Thyroid_Disease"), 
+               names_to = "Comorbidity", 
+               values_to = "Has_Comorbidity")
+
+# Count number of patients with each comorbidity
+comorbidity_df <- d_long %>%
+  group_by(Comorbidity) %>%
+  summarise(Count = sum(Has_Comorbidity))
+
+# Rename comorbidities for clarity
+comorbidity_df <- comorbidity_df %>% 
+  mutate(Comorbidity = recode(Comorbidity,
+                              COPD = "Chronic Obstructive Pulmonary Disease",
+                              alpha1_Antitrypsin_Deficiency = "Alpha-1 Antitrypsin Deficiency",
+                              Cystic_Fibrosis = "Cystic Fibrosis",
+                              Idiopathic_Pulmonary_Hypertension = "Idiopathic Pulmonary Hypertension",
+                              Interstitial_Lung_Disease = "Interstitial Lung Disease",
+                              Pulm_Other = "Other Pulmonary Conditions",
+                              Coronary_Artery_Disease = "Coronary Artery Disease",
+                              Hypertension = "Hypertension",
+                              Diabetes_insulin_ = "Diabetes (Insulin-Dependent)",
+                              Diabetes_diet_OHGs_ = "Diabetes (Diet/Oral Hypoglycemics)",
+                              GERD_PUD = "Gastroesophageal Reflux Disease/Peptic Ulcer Disease",
+                              Renal_Failure = "Renal Failure",
+                              Stroke_CVA = "Stroke (CVA)",
+                              Liver_Disease = "Liver Disease",
+                              Thyroid_Disease = "Thyroid Disease"))
+
+# Plot the frequency of comorbidities
+ggplot(comorbidity_df, aes(x = reorder(Comorbidity, Count), y = Count)) +
+  geom_col(col = "black", fill = "lightblue") +
+  coord_flip() +                                      
+  geom_text(aes(label = Count), vjust = 0.5, hjust = -0.3, size = 5) +
+  labs(
+    title = "Patient Comorbidities",
+    x = "Comorbidity",
+    y = "Frequency") +      
+  theme_classic() +                                   
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Hist - (Age, BMI, LAS), pre-operative, intra-operative
+
+# Start with the figure for Age, BMI, and LAS
+plot_list <- list()
+
+dem_vars <- c("Age", "BMI", "LAS_score")
+
+title_hist_dem <- c("Age" = "Age Distribution",
+                    "BMI" = "BMI Distribution",
+                    "LAS_score" = "Lung Allocation Score (LAS) Distribution")
+
+x_lab_hist_dem <- c("Age" = "Age (Years)",
+                    "BMI" = "BMI",
+                    "LAS_score" = "Lung Allocation Score (LAS)")
+
+for(var in dem_vars) {
+  
+  # Create historgram for current variable
+  p <- ggplot(d, aes_string(x=var)) +
+    geom_histogram(col="black", fill = "lightblue")+
+    labs(
+      title = title_hist_dem[var],
+      x = x_lab_hist_dem[var],
+      y = "Frequency") +
+    theme_classic()+
+    theme(plot.title = element_text(hjust = 0.5))
+  
+  # Add the plot to the list
+  plot_list[[var]] <- p
+}
+
+grid.arrange(grobs = plot_list, ncol = 3)
+
+# Create histograms for important pre-operative vars
+
+plot_list_2 <- list()
+
+pre_vars <- c("Pre_Hb", "Pre_Hct", "Pre_Platelets", "Pre_PT", "Pre_INR", "Pre_PTT", "Pre_Creatinine")
+
+title_hist_pre<- c("Pre_Hb" = "Preoperative Hemoglobin \nDistribution",
+                    "Pre_Hct" = "Preoperative Hematocrit \nDistribution",
+                    "Pre_Platelets" = "Preoperative Platelets \nDistribution",
+                    "Pre_PT" = "Preoperative Prothrombin Time \nDistribution",
+                    "Pre_INR" = "Preoperative International Normalized Ratio \n(INR) Distribution",
+                    "Pre_PTT" = "Partial Thromboplastin Time \nDistribution",
+                    "Pre_Creatinine" = "Preoperative Creatinine \nDistribution")
+
+x_lab_hist_pre <- c("Pre_Hb" = "Preoperative Hemoglobin Level (g/L)",
+                    "Pre_Hct" = "Preoperative Hematocrit (%)",
+                    "Pre_Platelets" = "Preoperative Platelet Count (×10⁹/L)",
+                    "Pre_PT" = "Preoperative Prothrombin Time (s)",
+                    "Pre_INR" = "Preoperative INR Index",
+                    "Pre_PTT" = "Partial Thromboplastin Time (s)",
+                    "Pre_Creatinine" = "Preoperative Creatinine Level (mg/dL)")
+
+for(var in pre_vars) {
+  
+  # Create historgram for current variable
+  p <- ggplot(d, aes_string(x=var)) +
+    geom_histogram(col="black", fill = "lightblue")+
+    labs(
+      title = title_hist_pre[var],
+      x = x_lab_hist_pre[var],
+      y = "Frequency") +
+    theme_classic()+
+    theme(plot.title = element_text(hjust = 0.5))
+  
+  # Add the plot to the list
+  plot_list_2[[var]] <- p
+}
+
+grid.arrange(grobs = plot_list_2, ncol = 3)
+
+# Create histograms for important intra-operative vars
+
+plot_list_3 <- list()
+
+intra_vars <- c("Intra_Albumin_5_mL_", "Intra_Crystalloid_mL_", "Intra_Cell_Saver_returned_mL_", "Blood_Loss", "Fluid_Balance")
+
+title_hist_intra<- c("Intra_Albumin_5_mL_" = "Distribution of Intraoperative Albumin \nAdministered",
+                   "Intra_Crystalloid_mL_" = "Distribution of Intraoperative Crystalloid \nAdministered",
+                   "Intra_Cell_Saver_returned_mL_" = "Distribution of Intraoperative Cell Saver Volume \nReturned",
+                   "Blood_Loss" = "Distribution of Intraoperative Blood Loss",
+                   "Fluid_Balance" = "Distribution of Intraoperative Fluid Balance")
+
+x_lab_hist_intra <- c("Intra_Albumin_5_mL_" = "Intraoperative Albumin Administered 5% (mL)",
+                    "Intra_Crystalloid_mL_" = "Intraoperative Crystalloid Administered (mL)",
+                    "Intra_Cell_Saver_returned_mL_" = "Intraoperative Cell Saver Volume Returned (mL)",
+                    "Blood_Loss" = "Intraoperative Blood Loss (mL)",
+                    "Fluid_Balance" = "Intraoperative Fluid Balance (mL)")
+
+
+for(var in intra_vars) {
+  
+  # Create historgram for current variable
+  p <- ggplot(d, aes_string(x=var)) +
+    geom_histogram(col="black", fill = "lightblue")+
+    labs(
+      title = title_hist_intra[var],
+      x = x_lab_hist_intra[var],
+      y = "Frequency") +
+    theme_classic()+
+    theme(plot.title = element_text(hjust = 0.5))
+  
+  # Add the plot to the list
+  plot_list_3[[var]] <- p
+}
+
+grid.arrange(grobs = plot_list_3, ncol = 3)
 
 ###########################################
 ## Comparing Lasso Model and Tree Models ##
