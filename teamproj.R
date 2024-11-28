@@ -16,15 +16,16 @@ library(grid)
 ## Data Prep ##
 ###############
 
-setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
+# setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
+setwd("~/Desktop/UTM/BTC1877/group5-teamproj") # crystal's wd
 
-d <- read_excel("transfusion data.xlsx")
+d_raw <- read_excel("transfusion data.xlsx")
 
-View(d)
-summary(d)
+View(d_raw)
+summary(d_raw)
 
 # remove irrelevant columns
-d <- d[,c(4:45, 51:54, 116)]
+d <- d_raw[,c(4:45, 51:54, 116)]
 
 summary(d)
 
@@ -199,22 +200,26 @@ comorbidity_df <- d_long %>%
 
 # Rename comorbidities for clarity
 comorbidity_df <- comorbidity_df %>% 
-  mutate(Comorbidity = recode(Comorbidity,
-                              COPD = "Chronic Obstructive Pulmonary Disease",
-                              alpha1_Antitrypsin_Deficiency = "Alpha-1 Antitrypsin Deficiency",
-                              Cystic_Fibrosis = "Cystic Fibrosis",
-                              Idiopathic_Pulmonary_Hypertension = "Idiopathic Pulmonary Hypertension",
-                              Interstitial_Lung_Disease = "Interstitial Lung Disease",
-                              Pulm_Other = "Other Pulmonary Conditions",
-                              Coronary_Artery_Disease = "Coronary Artery Disease",
-                              Hypertension = "Hypertension",
-                              Diabetes_insulin_ = "Diabetes (Insulin-Dependent)",
-                              Diabetes_diet_OHGs_ = "Diabetes (Diet/Oral Hypoglycemics)",
-                              GERD_PUD = "Gastroesophageal Reflux Disease/Peptic Ulcer Disease",
-                              Renal_Failure = "Renal Failure",
-                              Stroke_CVA = "Stroke (CVA)",
-                              Liver_Disease = "Liver Disease",
-                              Thyroid_Disease = "Thyroid Disease"))
+  mutate(
+    Comorbidity = dplyr::recode(
+      Comorbidity,
+      COPD = "Chronic Obstructive Pulmonary Disease",
+      alpha1_Antitrypsin_Deficiency = "Alpha-1 Antitrypsin Deficiency",
+      Cystic_Fibrosis = "Cystic Fibrosis",
+      Idiopathic_Pulmonary_Hypertension = "Idiopathic Pulmonary Hypertension",
+      Interstitial_Lung_Disease = "Interstitial Lung Disease",
+      Pulm_Other = "Other Pulmonary Conditions",
+      Coronary_Artery_Disease = "Coronary Artery Disease",
+      Hypertension = "Hypertension",
+      Diabetes_insulin_ = "Diabetes (Insulin-Dependent)",
+      Diabetes_diet_OHGs_ = "Diabetes (Diet/Oral Hypoglycemics)",
+      GERD_PUD = "Gastroesophageal Reflux Disease/Peptic Ulcer Disease",
+      Renal_Failure = "Renal Failure",
+      Stroke_CVA = "Stroke (CVA)",
+      Liver_Disease = "Liver Disease",
+      Thyroid_Disease = "Thyroid Disease"
+    )
+  )
 
 # Plot the frequency of comorbidities
 ggplot(comorbidity_df, aes(x = reorder(Comorbidity, Count), y = Count)) +
@@ -564,3 +569,230 @@ ggplot(coef_df_reg, aes(x = reorder(Predictor, Coefficient), y = Coefficient, fi
   coord_flip() +
   theme_minimal() +
   labs(x = "Predictor", y = "Coefficient", title = "LASSO Regression Model Coefficients")
+
+##############################
+####### QUESTION TWO #########
+##############################
+
+library(dplyr)
+library(survival)
+library(lubridate)
+library(survminer)
+library(MASS)
+library(ggplot2)
+library(car)
+
+######################################
+# Impact of Transfusion on Mortality #
+######################################
+
+missing_columns <- c(
+  "Massive Transfusion",
+  "RBC 72hr Total", "FFP 72hr Total", "Plt 72hr Total", "Cryo 72hr Total",
+  "Intra_Fresh Frozen Plasma", "Intra_Packed Cells", "Intra_PCC/Octaplex", 
+  "Intra_Platelets", "Intra_Cryoprecipitate",
+  "OR Date", "DEATH_DATE",
+  
+  "Duration of ICU Stay (days)", "Duration of Ventilation",
+  "ALIVE_30DAYS_YN", "ALIVE_90DAYS_YN", "ALIVE_12MTHS_YN",
+  "ICU_LOS", "HOSPITAL_LOS",
+  "Need for reoperation for bleeding within 24h"
+)
+
+# Extract missing data from the original dataset
+missing_data <- d_raw %>%
+  dplyr::select(all_of(missing_columns))
+
+# Combine `d_imp` with the missing columns
+d_imp_bind <- cbind(d_imp, missing_data)
+
+# Standardize column names
+names(d_imp_bind) <- gsub("[^A-Za-z0-9]+", "_", names(d_imp_bind))  
+
+# Convert death date and calculate time-to-event variables
+data3 <- d_imp_bind %>%
+  mutate(
+    death_date = dmy(DEATH_DATE, tz = "UTC"),  
+    or_death_diff = if_else(is.na(death_date), 365, as.numeric(death_date - OR_Date)),
+    death = if_else(is.na(death_date), 0, 1), # death indicator
+    transfusion_status = ifelse(Total_24hr_RBC > 0, "Transfusion", "No Transfusion"),
+    alive_12m = factor(ALIVE_12MTHS_YN, levels = c("N", "Y"), labels = c("No", "Yes"))
+  )
+
+# Survival Analysis - Kaplan-Meier curve
+sf <- survfit(Surv(or_death_diff, death) ~ 1, data = data3)
+
+# Plot Kaplan-Meier curve
+plot(sf, xlab = "Time from Operation Date (days)", ylab = "Survival Probability")
+title("Kaplan-Meier Curve: Survival from Operation Date")
+
+# Stratified KM Curve by Transfusion Status
+sf2 <- survfit(Surv(or_death_diff, death) ~ transfusion_status, data = data3)
+
+# Plot stratified KM curve
+ggsurvplot(
+  sf2,
+  data = data3,
+  title = "Survival by Transfusion Status",
+  xlab = "Time from Operation Date (days)",
+  ylab = "Survival Probability",
+  legend.title = "Transfusion Status",
+  legend.labs = c("No Transfusion", "Transfusion"),
+  palette = c("skyblue", "lightpink")
+)
+
+# Log-rank test for survival differences by transfusion status
+logrank <- survdiff(Surv(or_death_diff, death) ~ transfusion_status, data = data3)
+print(logrank)
+
+# Check PH assumption using cloglog
+plot(
+  survfit(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3),
+  fun = "cloglog",
+  main = "Complementary Log-Log Survival Plot by Transfusion Status", 
+  xlab = "Time from Operation Date", 
+  ylab = "Complementary Log-Log Survival Probability",
+  col=1:3)
+
+legend("bottomright",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2, cex = 0.8) 
+
+# Cox PH model
+coxmod <- coxph(Surv(or_death_diff, death == 1) ~ transfusion_status, data = data3)
+coxmodsummary <- summary(coxmod) 
+print(coxmodsummary)
+# Patients who received transfusions had a 1.3x higher or 30% higher hazard of death
+# compared to those who did not receive transfusions
+
+################################
+## Logistic Regression Models ##
+################################
+
+# Logistic Regression - Death as Outcome
+log_model_death <- glm(
+  death ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
+    FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
+    Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
+    Intra_Platelets + Intra_Cryoprecipitate,
+  data = data3,
+  family = binomial
+)
+
+summary(log_model_death)
+
+# Stepwise AIC for best predictors
+best_log_model_death <- stepAIC(log_model_death, direction = "both")
+summary(best_log_model_death)
+
+# Check for multicolinearity 
+vif(log_model_death) # red flag
+
+# Logistic Regression - Alive at 12m as Outcome
+full_log_alive12m <- glm(
+  alive_12m ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
+    FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
+    Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
+    Intra_Platelets + Intra_Cryoprecipitate,
+  data = data3,
+  family = binomial
+)
+
+summary(full_log_alive12m) 
+
+# Stepwise AIC for best predictors
+best_model_alive12m <- stepAIC(full_log_alive12m, direction = "both")
+summary(best_model_alive12m)
+
+####################################
+# ICU and Hospital LOS Comparisons #
+###################################
+
+# # Assess Normality for ICU and Hospital Length of Stay by Transfusion Status
+icu_los_normality <- shapiro.test(data3$ICU_LOS)
+hospital_los_normality <- shapiro.test(data3$HOSPITAL_LOS)
+
+# Print Shapiro test results
+print(icu_los_normality)
+print(hospital_los_normality)
+
+# Extract ICU LOS for both groups
+icu_no_transfusion <- data3 %>%
+  filter(transfusion_status == "No Transfusion") %>%
+  pull(ICU_LOS)
+
+icu_transfusion <- data3 %>%
+  filter(transfusion_status == "Transfusion") %>%
+  pull(ICU_LOS)
+
+# Extract Hospital LOS for both groups
+hospital_no_transfusion <- data3 %>%
+  filter(transfusion_status == "No Transfusion") %>%
+  pull(HOSPITAL_LOS)
+
+hospital_transfusion <- data3 %>%
+  filter(transfusion_status == "Transfusion") %>%
+  pull(HOSPITAL_LOS)
+
+# Function to create histograms and QQ plots
+plot_normality <- function(data, title_hist, title_qq, xlab_hist) {
+  # Histogram
+  hist(
+    data, 
+    main = title_hist, 
+    xlab = xlab_hist, 
+    col = "lightblue", 
+    breaks = 10
+  )
+  
+  # QQ Plot
+  qqnorm(data, main = title_qq)
+  qqline(data, col = "red")
+}
+
+# Normality plots for ICU LOS
+plot_normality(
+  icu_no_transfusion,
+  title_hist = "Histogram: ICU LOS (No Transfusion)",
+  title_qq = "QQ Plot: ICU LOS (No Transfusion)",
+  xlab_hist = "ICU LOS (days)"
+)
+
+plot_normality(
+  icu_transfusion,
+  title_hist = "Histogram: ICU LOS (Transfusion)",
+  title_qq = "QQ Plot: ICU LOS (Transfusion)",
+  xlab_hist = "ICU LOS (days)"
+)
+
+# Normality plots for Hospital LOS
+plot_normality(
+  hospital_no_transfusion,
+  title_hist = "Histogram: Hospital LOS (No Transfusion)",
+  title_qq = "QQ Plot: Hospital LOS (No Transfusion)",
+  xlab_hist = "Hospital LOS (days)"
+)
+
+plot_normality(
+  hospital_transfusion,
+  title_hist = "Histogram: Hospital LOS (Transfusion)",
+  title_qq = "QQ Plot: Hospital LOS (Transfusion)",
+  xlab_hist = "Hospital LOS (days)"
+)
+
+# Perform Wilcoxon test for LOS variables
+wilcox_icu <- wilcox.test(ICU_LOS ~ transfusion_status, data = data3)
+wilcox_hospital <- wilcox.test(HOSPITAL_LOS ~ transfusion_status, data = data3)
+
+# Print Wilcoxon test results
+print(wilcox_icu)
+print(wilcox_hospital)
+
+# Boxplots for LOS by Transfusion Status
+ggplot(data3, aes(x = transfusion_status, y = ICU_LOS, fill = transfusion_status)) +
+  geom_boxplot() +
+  labs(title = "ICU Length of Stay by Transfusion Status", x = "Transfusion Status", y = "ICU LOS (days)") +
+  theme_minimal()
+
+ggplot(data3, aes(x = transfusion_status, y = HOSPITAL_LOS, fill = transfusion_status)) +
+  geom_boxplot() +
+  labs(title = "Hospital Length of Stay by Transfusion Status", x = "Transfusion Status", y = "Hospital LOS (days)") +
+  theme_minimal()
