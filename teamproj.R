@@ -623,19 +623,19 @@ data3 <- d_imp_bind %>%
 q2_summary <- tbl_summary(
   data3,
   by = transfusion_status,  # Stratify by transfusion_status
-  missing = "ifany",        # Report missing data
+  missing = "ifany",       
   statistic = list(
-    all_continuous() ~ "{mean} ({sd})",  # Mean and standard deviation for continuous variables
-    all_categorical() ~ "{n} ({p}%)"    # Counts and percentages for categorical variables
+    all_continuous() ~ "{mean} ({sd})",  
+    all_categorical() ~ "{n} ({p}%)"    
   ),
   label = list(  # Custom labels for variables
     death ~ "Death Indicator (1 = Yes, 0 = No)",
     ICU_LOS ~ "ICU Length of Stay (days)",
     HOSPITAL_LOS ~ "Hospital Length of Stay (days)"
   ),
-  include = c(death, ICU_LOS, HOSPITAL_LOS)  # Include only selected variables
+  include = c(death, ICU_LOS, HOSPITAL_LOS)  
 ) %>%
-  add_p() %>%            # Add p-values for group comparisons
+  add_p() %>%            
   italicize_levels() %>%
   bold_labels()
 
