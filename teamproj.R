@@ -608,12 +608,10 @@ missing_columns <- c(
   "RBC 72hr Total", "FFP 72hr Total", "Plt 72hr Total", "Cryo 72hr Total",
   "Intra_Fresh Frozen Plasma", "Intra_Packed Cells", "Intra_PCC/Octaplex", 
   "Intra_Platelets", "Intra_Cryoprecipitate",
-  "OR Date", "DEATH_DATE",
   
   "Duration of ICU Stay (days)", "Duration of Ventilation",
-  "ALIVE_30DAYS_YN", "ALIVE_90DAYS_YN", "ALIVE_12MTHS_YN",
-  "ICU_LOS", "HOSPITAL_LOS",
-  "Need for reoperation for bleeding within 24h"
+  "ALIVE_12MTHS_YN", "OR Date", "DEATH_DATE",
+  "ICU_LOS", "HOSPITAL_LOS"
 )
 
 # Extract missing data from the original dataset
@@ -629,11 +627,13 @@ names(d_imp_bind) <- gsub("[^A-Za-z0-9]+", "_", names(d_imp_bind))
 # Convert death date and calculate time-to-event variables
 data3 <- d_imp_bind %>%
   mutate(
+    gender = factor(`Gender_male_`, levels = c(FALSE, TRUE), labels = c("Female", "Male")),
     death_date = dmy(DEATH_DATE, tz = "UTC"),  
     or_death_diff = if_else(is.na(death_date), 365, as.numeric(death_date - OR_Date)),
     death = if_else(is.na(death_date), 0, 1), # death indicator
     transfusion_status = ifelse(Total_24hr_RBC > 0, "Transfusion", "No Transfusion"),
-    alive_12m = factor(ALIVE_12MTHS_YN, levels = c("N", "Y"), labels = c("No", "Yes"))
+    alive_12m = factor(ALIVE_12MTHS_YN, levels = c("N", "Y"), labels = c("No", "Yes")),
+    
   )
 
 ###############
@@ -733,7 +733,7 @@ log_model_death <- glm(
   death ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
     FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
     Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
-    Intra_Platelets + Intra_Cryoprecipitate,
+    Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI,
   data = data3,
   family = binomial
 )
@@ -752,7 +752,7 @@ full_log_alive12m <- glm(
   alive_12m ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
     FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
     Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
-    Intra_Platelets + Intra_Cryoprecipitate,
+    Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI,
   data = data3,
   family = binomial
 )
