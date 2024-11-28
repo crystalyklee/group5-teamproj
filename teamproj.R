@@ -16,8 +16,8 @@ library(grid)
 ## Data Prep ##
 ###############
 
-# setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
-setwd("~/Desktop/UTM/BTC1877/group5-teamproj") # crystal's wd
+setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
+#setwd("~/Desktop/UTM/BTC1877/group5-teamproj") # crystal's wd
 
 d_raw <- read_excel("transfusion data.xlsx")
 
