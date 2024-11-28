@@ -16,8 +16,8 @@ library(grid)
 ## Data Prep ##
 ###############
 
-setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
-#setwd("~/Desktop/UTM/BTC1877/group5-teamproj") # crystal's wd
+#setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
+setwd("~/Desktop/UTM/BTC1877/group5-teamproj") # crystal's wd
 
 d_raw <- read_excel("transfusion data.xlsx")
 
@@ -631,7 +631,7 @@ data3 <- d_imp_bind %>%
     death_date = dmy(DEATH_DATE, tz = "UTC"),  
     or_death_diff = if_else(is.na(death_date), 365, as.numeric(death_date - OR_Date)),
     death = as.factor(if_else(is.na(death_date), 0, 1)), # death indicator
-    transfusion_status = ifelse(Total_24hr_RBC > 0, "Transfusion", "No Transfusion"),
+    transfusion_status = as.factor(ifelse(Total_24hr_RBC > 0, "Transfusion", "No Transfusion")),
     alive_12m = factor(ALIVE_12MTHS_YN, levels = c("N", "Y"), labels = c("No", "Yes")),
     
   )
@@ -690,13 +690,30 @@ title("Kaplan-Meier Curve: Survival from Operation Date")
 # Stratified KM Curve by Transfusion Status
 sf2 <- survfit(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
 
-# Plot stratified KM curve
+plot(sf2, xlab = "Time from Operation Date (days)", ylab = "Survival Probability", col=1:2)
+legend("bottomright",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2)
+title("Stratified Kaplan-Meier Curve: Survival from Operation Date")
+
+# Plot stratified KM curve using survmine function 
 ggsurvplot(
   sf2,
   data = data3,
   title = "Survival by Transfusion Status",
   xlab = "Time from Operation Date (days)",
   ylab = "Survival Probability",
+  legend.title = "Transfusion Status",
+  legend.labs = c("No Transfusion", "Transfusion"),
+  palette = c("skyblue", "lightpink")
+)
+
+# Plot stratified KM curve, capped at 365 days
+ggsurvplot(
+  sf2,
+  data = data3,
+  title = "Survival by Transfusion Status",
+  xlab = "Time from Operation Date (days)",
+  ylab = "Survival Probability",
+  xlim = c(0, 365),
   legend.title = "Transfusion Status",
   legend.labs = c("No Transfusion", "Transfusion"),
   palette = c("skyblue", "lightpink")
@@ -723,6 +740,15 @@ coxmodsummary <- summary(coxmod)
 print(coxmodsummary)
 # Patients who received transfusions had a 1.3x higher or 30% higher hazard of death
 # compared to those who did not receive transfusions
+
+# Expanded Cox PH model
+coxmod2 <- coxph(Surv(or_death_diff, death == 1) ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
+                   FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
+                   Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
+                   Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI , data = data3)
+
+coxmodsummary2 <- summary(coxmod2) 
+print(coxmodsummary2)
 
 ################################
 ## Logistic Regression Models ##
