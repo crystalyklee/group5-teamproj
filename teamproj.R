@@ -583,6 +583,26 @@ library(ggplot2)
 library(car)
 library(cardx)
 
+# Calculate percentage of missing values for each column
+missing_percentage <- sapply(d_raw, function(x) sum(is.na(x)) / nrow(d_raw) * 100)
+
+missing_percentage
+
+# Variables to exclude based on =>30% missing data
+
+# RBC 0-24hrs
+# RBC 24-48hrs
+# RBC 48-72hrs
+# FFP 0-24hrs
+# FFP 24-48hrs
+# FFP 48-72hrs
+# Plt 0-24hrs
+# Plt 24-48hrs
+# Plt 48-72hrs
+# Cryo 0-24hrs
+# Cryo 24-48hrs
+# Cryo 48-72hrs
+
 missing_columns <- c(
   "Massive Transfusion",
   "RBC 72hr Total", "FFP 72hr Total", "Plt 72hr Total", "Cryo 72hr Total",
