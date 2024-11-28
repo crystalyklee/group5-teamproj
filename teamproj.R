@@ -581,10 +581,7 @@ library(survminer)
 library(MASS)
 library(ggplot2)
 library(car)
-
-######################################
-# Impact of Transfusion on Mortality #
-######################################
+library(cardx)
 
 missing_columns <- c(
   "Massive Transfusion",
@@ -618,6 +615,50 @@ data3 <- d_imp_bind %>%
     transfusion_status = ifelse(Total_24hr_RBC > 0, "Transfusion", "No Transfusion"),
     alive_12m = factor(ALIVE_12MTHS_YN, levels = c("N", "Y"), labels = c("No", "Yes"))
   )
+
+###############
+##### EDA #####
+###############
+
+q2_summary <- tbl_summary(
+  data3,
+  by = transfusion_status,  # Stratify by transfusion_status
+  missing = "ifany",        # Report missing data
+  statistic = list(
+    all_continuous() ~ "{mean} ({sd})",  # Mean and standard deviation for continuous variables
+    all_categorical() ~ "{n} ({p}%)"    # Counts and percentages for categorical variables
+  ),
+  label = list(  # Custom labels for variables
+    death ~ "Death Indicator (1 = Yes, 0 = No)",
+    ICU_LOS ~ "ICU Length of Stay (days)",
+    HOSPITAL_LOS ~ "Hospital Length of Stay (days)"
+  ),
+  include = c(death, ICU_LOS, HOSPITAL_LOS)  # Include only selected variables
+) %>%
+  add_p() %>%            # Add p-values for group comparisons
+  italicize_levels() %>%
+  bold_labels()
+
+q2_summary
+
+# Mortality rate by transfusion status 
+ggplot(data3, aes(x = transfusion_status, fill = factor(death))) +
+  geom_bar(position = "stack") + 
+  scale_fill_manual(
+    values = c("0" = "skyblue", "1" = "maroon"),  
+    labels = c("Alive", "Dead")) +
+  labs(
+    title = "Mortality Rate by Transfusion Status",
+    x = "Transfusion Status",
+    y = "Proportion",
+    fill = ""
+  ) +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+######################################
+######### Survival Analysis ##########
+######################################
 
 # Survival Analysis - Kaplan-Meier curve
 sf <- survfit(Surv(or_death_diff, death) ~ 1, data = data3)
