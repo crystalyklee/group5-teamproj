@@ -630,7 +630,7 @@ data3 <- d_imp_bind %>%
     gender = factor(`Gender_male_`, levels = c(FALSE, TRUE), labels = c("Female", "Male")),
     death_date = dmy(DEATH_DATE, tz = "UTC"),  
     or_death_diff = if_else(is.na(death_date), 365, as.numeric(death_date - OR_Date)),
-    death = if_else(is.na(death_date), 0, 1), # death indicator
+    death = as.factor(if_else(is.na(death_date), 0, 1)), # death indicator
     transfusion_status = ifelse(Total_24hr_RBC > 0, "Transfusion", "No Transfusion"),
     alive_12m = factor(ALIVE_12MTHS_YN, levels = c("N", "Y"), labels = c("No", "Yes")),
     
@@ -688,7 +688,7 @@ plot(sf, xlab = "Time from Operation Date (days)", ylab = "Survival Probability"
 title("Kaplan-Meier Curve: Survival from Operation Date")
 
 # Stratified KM Curve by Transfusion Status
-sf2 <- survfit(Surv(or_death_diff, death) ~ transfusion_status, data = data3)
+sf2 <- survfit(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
 
 # Plot stratified KM curve
 ggsurvplot(
