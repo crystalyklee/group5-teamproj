@@ -703,7 +703,8 @@ ggsurvplot(
   ylab = "Survival Probability",
   legend.title = "Transfusion Status",
   legend.labs = c("No Transfusion", "Transfusion"),
-  palette = c("skyblue", "lightpink")
+  palette = c("skyblue", "lightpink"),
+  censor = TRUE
 )
 
 # Plot stratified KM curve, capped at 365 days
@@ -714,6 +715,19 @@ ggsurvplot(
   xlab = "Time from Operation Date (days)",
   ylab = "Survival Probability",
   xlim = c(0, 365),
+  legend.title = "Transfusion Status",
+  legend.labs = c("No Transfusion", "Transfusion"),
+  palette = c("skyblue", "lightpink")
+)
+
+# Plot stratified KM curve, past at 365 days
+ggsurvplot(
+  sf2,
+  data = data3,
+  title = "Survival by Transfusion Status",
+  xlab = "Time from Operation Date (days)",
+  ylab = "Survival Probability",
+  xlim = c(365,700),
   legend.title = "Transfusion Status",
   legend.labs = c("No Transfusion", "Transfusion"),
   palette = c("skyblue", "lightpink")
@@ -745,7 +759,8 @@ print(coxmodsummary)
 coxmod2 <- coxph(Surv(or_death_diff, death == 1) ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
                    FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
                    Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
-                   Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI , data = data3)
+                   Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI + First_Lung_Transplant +
+                   Hypertension + ECLS_ECMO, data = data3)
 
 coxmodsummary2 <- summary(coxmod2) 
 print(coxmodsummary2)
