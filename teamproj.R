@@ -147,17 +147,17 @@ tbl_summary(
     Pre_PT ~ "Preoperative Prothrombin Time (s)",
     Pre_INR ~ "Preoperative INR",
     Pre_PTT ~ "Preoperative PTT (s)",
-    Pre_Creatinine ~ "Preoperative Creatinine (mg/dL)",
-    Intraoperative_ECLS ~ "Intraoperative ECLS (ECMO)",
+    Pre_Creatinine ~ "Preoperative Creatinine (µmol/L)",
+    Intraoperative_ECLS ~ "Intraoperative ECLS",
     ECLS_ECMO ~ "ECLS ECMO",
     ECLS_CPB ~ "ECLS Cardiopulmonary Bypass",
-    Intra_Albumin_5_mL_ ~ "Intraoperative Albumin (5mL)",
+    Intra_Albumin_5_mL_ ~ "Intraoperative Albumin 5% (mL)",
     Intra_Crystalloid_mL_ ~ "Intraoperative Crystalloid (mL)",
     Intra_Cell_Saver_returned_mL_ ~ "Intraoperative Cell Saver Returned (mL)",
     Blood_Loss ~ "Blood Loss (mL)",
     Urine_Output ~ "Urine Output (mL)",
     Fluid_Balance ~ "Fluid Balance (mL)",
-    Tranexamic_Acid_Used ~ "Tranexamic Acid Used (1 = Yes)"
+    Tranexamic_Acid_Used ~ "Tranexamic Acid Used"
   ),
   include = c(Pre_Hb, Pre_Hct, Pre_Platelets, Pre_PT, Pre_INR, Pre_PTT, Pre_Creatinine, 
               Intraoperative_ECLS, ECLS_ECMO, ECLS_CPB, Intra_Albumin_5_mL_, 
@@ -220,7 +220,7 @@ comorbidity_df <- comorbidity_df %>%
     )
   )
 
-# Plot the frequency of comorbidities
+# Plot the frequency of commodities
 ggplot(comorbidity_df, aes(x = reorder(Comorbidity, Count), y = Count)) +
   geom_col(col = "black", fill = "lightblue") +
   coord_flip() +                                      
@@ -285,7 +285,7 @@ x_lab_hist_pre <- c("Pre_Hb" = "Preoperative Hemoglobin Level (g/L)",
                     "Pre_PT" = "Preoperative Prothrombin Time (s)",
                     "Pre_INR" = "Preoperative INR Index",
                     "Pre_PTT" = "Partial Thromboplastin Time (s)",
-                    "Pre_Creatinine" = "Preoperative Creatinine Level (mg/dL)")
+                    "Pre_Creatinine" = "Preoperative Creatinine Level (µmol/L)")
 
 for(var in pre_vars) {
   
@@ -347,10 +347,15 @@ grid.arrange(grobs = plot_list_3, ncol = 3)
 ###########################################
 
 # Create a version of the data without the RBC count because that is not a predictor
+
 # Since BMI, weight, and height will include co-linearity, we can keep just BMI
 # Also, pre-INR is a standardized version of pre-PT, so we can keep only the standardized one
 # Similarly, we can keep only intraoperative_ECLS since it accounts for both ECMO and CPB.
-d1 <- d_imp[,c(-3,-4,-31,-36,-37,-45)]
+
+# Also, can exclude binary predictors with fewer than 5% in one of the levels:
+# a1t, idiopathic pulmonary, renal failure, stroke, liver disease, and tranexamic acid
+
+d1 <- d_imp[,c(-3,-4,-8,-10,-18,-19,-20,-31,-36,-37,-44,-45)]
 
 # Create an empty dataframe to store the AUC for each model and respective replicates
 model.eval <- data.frame(model = NA, trial = NA, auc = NA)[0,]
@@ -512,8 +517,9 @@ ggplot(coef_df_class, aes(x = reorder(Predictor, Coefficient), y = Coefficient, 
 
 # Remove the binary column showing if the patient received transfusion
 # Remove variables that may introduce co-linearity (same vars as model above)
+# Remove binary variables with fewer than 5% in a level (same vars as model above)
 # Also, only include patients who received transfusion
-d2 <- d_imp[d_imp$Total_24hr_RBC != 0,c(-3,-4,-31,-36,-37,-46)]
+d2 <- d_imp[d_imp$Total_24hr_RBC != 0,c(-3,-4,-8,-10,-18,-19,-20,-31,-36,-37,-44,-46)]
 
 # We want to test how sensitive the lasso model is for different data splits
 # Create an empty dataframe to store the MSE for each replicate
