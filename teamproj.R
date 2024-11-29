@@ -16,7 +16,7 @@ library(grid)
 setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj") # ibrahim's wd
 #setwd("~/Desktop/UTM/BTC1877/group5-teamproj") # crystal's wd
 
-set.seed(123)
+set.seed(4)
 
 d_raw <- read_excel("transfusion data.xlsx")
 
@@ -393,9 +393,6 @@ for (i in 1:length(seeds)) {
   cv.lasso$lambda.min
   cv.lasso$lambda.1se
   
-  # Find the predictors in the 1SE model
-  coef(cv.lasso, s = "lambda.1se")
-  
   # Create predictions for the test set
   pred.lasso <- as.numeric(predict(lasso.mod, newx = model.matrix(transfusion ~.,d1)[-train.I,-1], s=cv.lasso$lambda.1se, type = "response"))
   
@@ -475,11 +472,11 @@ ggplot(model.eval, aes(x = trial, y = auc, fill = model)) +
 cv.lasso$lambda.1se
 
 # Find the predictors in the model
-coef(cv.lasso, s = "lambda.1se")
-coef_min_class <- coef(cv.lasso, s = "lambda.1se")
+coef(lasso.mod, s = cv.lasso$lambda.min)
+coef_min_class <- coef(lasso.mod, s = cv.lasso$lambda.min)
 
 # Plot ROC
-ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve with Diagonal Line")
+ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve")
 
 # Determine auc
 auc.lasso
@@ -562,13 +559,13 @@ for(i in 1:length(seeds)) {
   print(cv.lasso.reg)
   
   # We can see the value of the features that stay in the model when using the 1se lambda
-  coef_min_reg <- coef(cv.lasso.reg, s = "lambda.1se")
+  coef_min_reg <- coef(lasso.mod, s = cv.lasso.reg$lambda.1se)
   
   # List of selected predictors, those that stayed in the model
   rownames(coef_min_reg)[coef_min_reg[,1] != 0][-1]
   
   # Make predictions on the testing set
-  y_pred <- predict(cv.lasso.reg, newx = x_test, s = cv.lasso.reg$lambda.1se)
+  y_pred <- predict(lasso.mod, newx = x_test, s = cv.lasso.reg$lambda.1se)
   
   # Calculate the Mean Squared Error (MSE) on the testing set
   mse_test <- mean((y_test - y_pred)^2)
