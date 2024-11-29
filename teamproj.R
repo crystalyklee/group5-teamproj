@@ -1,6 +1,3 @@
-
-# Brainstorm for Q1
-
 library(readxl)
 library(tidyverse)
 library(mice)
@@ -16,8 +13,10 @@ library(grid)
 ## Data Prep ##
 ###############
 
-setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
+setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj") # ibrahim's wd
 #setwd("~/Desktop/UTM/BTC1877/group5-teamproj") # crystal's wd
+
+set.seed(123)
 
 d_raw <- read_excel("transfusion data.xlsx")
 
@@ -348,7 +347,10 @@ grid.arrange(grobs = plot_list_3, ncol = 3)
 ###########################################
 
 # Create a version of the data without the RBC count because that is not a predictor
-d1 <- d_imp[,-45]
+# Since BMI, weight, and height will include co-linearity, we can keep just BMI
+# Also, pre-INR is a standardized version of pre-PT, so we can keep only the standardized one
+# Similarly, we can keep only intraoperative_ECLS since it accounts for both ECMO and CPB.
+d1 <- d_imp[,c(-3,-4,-31,-36,-37,-45)]
 
 # Create an empty dataframe to store the AUC for each model and respective replicates
 model.eval <- data.frame(model = NA, trial = NA, auc = NA)[0,]
@@ -356,14 +358,12 @@ model.eval <- data.frame(model = NA, trial = NA, auc = NA)[0,]
 # Pick 5 seeds to randomize the testing/training split
 seeds <- sample(1:1000, 5)
 
-roc_plots <- list()
-
 d1$transfusion <- as.factor(as.numeric(d1$transfusion))
 
 # For each seed, create and evaluate the models (via AUC)
 for (i in 1:length(seeds)) {
   
-  # Split data into training and test, equal size
+  # Split data into training and test
   set.seed(seeds[i])
   train.I <- sample(nrow(d1),round(nrow(d1)/(10/7)))
   
@@ -383,18 +383,20 @@ for (i in 1:length(seeds)) {
   cv.lasso <- cv.glmnet(x,y,alpha=1,family = "binomial", type.measure = "auc", nfolds = 5)
   plot(cv.lasso)
   
-  # Extract the value of lambda
+  # Extract the value of lambda that minimizes auc
+  # also extract the 1SE value of lambda that yields a more parsimonious model
   cv.lasso$lambda.min
+  cv.lasso$lambda.1se
   
-  # Find the predictors in the model
-  coef(cv.lasso, s = "lambda.min")
+  # Find the predictors in the 1SE model
+  coef(cv.lasso, s = "lambda.1se")
   
   # Create predictions for the test set
-  pred.lasso <- as.numeric(predict(lasso.mod, newx = model.matrix(transfusion ~.,d1)[-train.I,-1], s=cv.lasso$lambda.min, type = "response"))
+  pred.lasso <- as.numeric(predict(lasso.mod, newx = model.matrix(transfusion ~.,d1)[-train.I,-1], s=cv.lasso$lambda.1se, type = "response"))
   
   # Plot the ROC curve
   myroc <- roc(transfusion ~ pred.lasso, data=d1[-train.I,])
-  ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve with Diagonal Line")
+  ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve")
   
   # Extracting the Area Under the Curve, a measure of discrimination
   auc.lasso <- myroc$auc
@@ -464,12 +466,12 @@ ggplot(model.eval, aes(x = trial, y = auc, fill = model)) +
 
 # See the results of the lasso model 
 
-# Extract the value of lambda
-cv.lasso$lambda.min
+# Extract the value of lambda (1se)
+cv.lasso$lambda.1se
 
 # Find the predictors in the model
-coef(cv.lasso, s = "lambda.min")
-coef_min_class <- coef(cv.lasso, s = "lambda.min")
+coef(cv.lasso, s = "lambda.1se")
+coef_min_class <- coef(cv.lasso, s = "lambda.1se")
 
 # Plot ROC
 ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve with Diagonal Line")
@@ -508,40 +510,76 @@ ggplot(coef_df_class, aes(x = reorder(Predictor, Coefficient), y = Coefficient, 
 ## Regression Lasso Model ##
 ############################
 
-d2 <- d_imp[d_imp$Total_24hr_RBC != 0,-46]
+# Remove the binary column showing if the patient received transfusion
+# Remove variables that may introduce co-linearity (same vars as model above)
+# Also, only include patients who received transfusion
+d2 <- d_imp[d_imp$Total_24hr_RBC != 0,c(-3,-4,-31,-36,-37,-46)]
 
-# Obtain a matrix with the feature values
-x <- model.matrix(Total_24hr_RBC ~ . , d2)[,-1]
+# We want to test how sensitive the lasso model is for different data splits
+# Create an empty dataframe to store the MSE for each replicate
+model.eval.reg <- data.frame(trial = NA, test_mse = NA)[0,]
 
-# Create a vector with the response values
-y <- d2$Total_24hr_RBC
+for(i in 1:length(seeds)) {
+  
+  # Split data into training and test
+  set.seed(seeds[i])
+  train.I <- sample(nrow(d2), round(nrow(d2)/(10/7)))
+  
+  # Obtain a matrix with the feature values
+  x <- model.matrix(Total_24hr_RBC ~ . , d2)[train.I,-1]
+  x_test <- model.matrix(Total_24hr_RBC ~ . , d2)[-train.I,-1]
+  
+  # Create a vector with the response values
+  y <- d2$Total_24hr_RBC[train.I]
+  y_test <- d2$Total_24hr_RBC[-train.I]
+  
+  # Train the models
+  lasso.mod <- glmnet(x,y,family="gaussian")
+  
+  # Plot the results against different values of log(lambda)
+  plot(lasso.mod,xvar = "lambda")
+  
+  # for different values of lambda we are getting different coefficient estimates (weights)
+  # We need to decide on an optimal value for lambda
+  # We will do it by performing cross-validation
+  
+  cv.lasso.reg <- cv.glmnet(x,y,nfolds = 5)
+  plot(cv.lasso.reg)
+  
+  # We can extract the value that gives the lowest Cross-validated Mean Squared Error
+  cv.lasso.reg$lambda.min
+  
+  # We can also extract the value of lambda within the 1SE of the best value to improve parsimony
+  cv.lasso.reg$lambda.1se
+  
+  # The MSE for those value of lambda
+  print(cv.lasso.reg)
+  
+  # We can see the value of the features that stay in the model when using the 1se lambda
+  coef_min_reg <- coef(cv.lasso.reg, s = "lambda.1se")
+  
+  # List of selected predictors, those that stayed in the model
+  rownames(coef_min_reg)[coef_min_reg[,1] != 0][-1]
+  
+  # Make predictions on the testing set
+  y_pred <- predict(cv.lasso.reg, newx = x_test, s = cv.lasso.reg$lambda.1se)
+  
+  # Calculate the Mean Squared Error (MSE) on the testing set
+  mse_test <- mean((y_test - y_pred)^2)
+  
+  # Update the dataframe with the test_mse
+  new_row <- data.frame(trial = i, test_mse = mse_test)
+  model.eval.reg <- rbind(model.eval.reg, new_row)
+  
+}
 
-# Train the models
-lasso.mod <- glmnet(x,y,family="gaussian")
-
-# Plot the results against different values of log(lambda)
-plot(lasso.mod,xvar = "lambda")
-
-# for different values of lambda we are getting different coefficient estimates (weights)
-# We need to decide on an optimal value for lambda
-# We will do it by performing cross-validation
-
-set.seed(123)
-
-cv.lasso.reg <- cv.glmnet(x,y,nfolds = 5)
-plot(cv.lasso.reg)
-
-# We can extract the value that gives the lowest Cross-validated Mean Squared Error
-cv.lasso.reg$lambda.min
-
-# The MSE for that value of lambda
-print(cv.lasso.reg)
-
-# We can see the value of the features that stay in the model when using the optimal lambda
-coef_min_reg <- coef(cv.lasso.reg, s = "lambda.min")
-
-# List of selected predictors, those that stayed in the model
-rownames(coef_min_reg)[coef_min_reg[,1] != 0][-1]
+# Create a column graph to show the test MSE for each split
+ggplot(model.eval.reg, aes(x = trial, y = test_mse)) +
+  geom_col(fill = "lightblue", color = "black") +
+  labs(
+    x = "Trial",
+    y = "Test MSE") +
+  theme_classic()
 
 # Plot the coefficients
 
