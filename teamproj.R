@@ -20,7 +20,6 @@ set.seed(4)
 
 d_raw <- read_excel("transfusion data.xlsx")
 
-View(d_raw)
 summary(d_raw)
 
 # remove irrelevant columns
@@ -360,6 +359,9 @@ d1 <- d_imp[,c(-3,-4,-8,-10,-18,-19,-20,-31,-36,-37,-44,-45)]
 # Create an empty dataframe to store the AUC for each model and respective replicates
 model.eval <- data.frame(model = NA, trial = NA, auc = NA)[0,]
 
+# Create a list to keep track of which predictors are included in each model
+selected_predictors <- list()
+
 # Pick 5 seeds to randomize the testing/training split
 seeds <- sample(1:1000, 5)
 
@@ -388,10 +390,18 @@ for (i in 1:length(seeds)) {
   cv.lasso <- cv.glmnet(x,y,alpha=1,family = "binomial", type.measure = "auc", nfolds = 5)
   plot(cv.lasso)
   
-  # Extract the value of lambda that minimizes auc
+  # Extract the value of lambda that maximizes auc
   # also extract the 1SE value of lambda that yields a more parsimonious model
   cv.lasso$lambda.min
   cv.lasso$lambda.1se
+  
+  # Extract coefficients at lambda.1se
+  coefs <- coef(lasso.mod, s = cv.lasso$lambda.1se)
+  non_zero_predictors <- rownames(coefs)[which(coefs != 0)]
+  non_zero_predictors <- non_zero_predictors[non_zero_predictors != "(Intercept)"]
+  
+  # Store the selected predictors for this seed
+  selected_predictors[[i]] <- non_zero_predictors
   
   # Create predictions for the test set
   pred.lasso <- as.numeric(predict(lasso.mod, newx = model.matrix(transfusion ~.,d1)[-train.I,-1], s=cv.lasso$lambda.1se, type = "response"))
@@ -462,24 +472,47 @@ ggplot(model.eval, aes(x = trial, y = auc, fill = model)) +
 
 # It seems the lasso classification model is consistently better than the tree models
 
+# Lets see which predictors were consistently included in the model
+
+# Summarize predictors across all seeds
+all_selected <- unlist(selected_predictors)
+predictor_frequency <- table(all_selected)
+
+# View predictors with their selection frequency
+print(predictor_frequency)
+
+# Identify predictors consistently selected in at least 4 of 5 seeds
+consistent_predictors <- names(predictor_frequency[predictor_frequency > 3])
+print(consistent_predictors)
+
 ########################
 ## Create Lasso Model ##
 ########################
 
-# See the results of the lasso model 
+# Now that we know the lasso model is the best choice, we can fit a lasso model
+# using 100% of the data
 
-# Extract the value of lambda (1se)
+# Create model matrix, exclude intercept column
+x <- model.matrix(transfusion ~.,d1)[,-1]
+
+# Create a vector with the response values
+y <- d1$transfusion
+
+# Fit the model
+lasso.mod <- glmnet(x,y,family="binomial")
+
+# Use cross validation (k=5) to determine the optimal value of lambda
+cv.lasso <- cv.glmnet(x,y,alpha=1,family = "binomial", type.measure = "auc", nfolds = 5)
+plot(cv.lasso)
+
+# Extract the value of lambda that maximizes auc
+# also extract the 1SE value of lambda that yields a more parsimonious model
+cv.lasso$lambda.min
 cv.lasso$lambda.1se
 
 # Find the predictors in the model
 coef(lasso.mod, s = cv.lasso$lambda.min)
 coef_min_class <- coef(lasso.mod, s = cv.lasso$lambda.min)
-
-# Plot ROC
-ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve")
-
-# Determine auc
-auc.lasso
 
 # Plot the coefficients
 
@@ -495,7 +528,10 @@ coef_df_class$Predictor <- rownames(coef_df_class)
 # Filter for non-zero coefficients
 coef_df_class <- coef_df_class[coef_df_class$Coefficient != 0, ]
 
-# Sort predictors by magnitude of coefficients (optional)
+# Only include features that were included in the model consistently
+coef_df_class <- coef_df_class[coef_df_class$Predictor %in% consistent_predictors,]
+
+# Sort predictors by magnitude of coefficients
 coef_df_class <- coef_df_class[order(abs(coef_df_class$Coefficient), decreasing = TRUE), ]
 
 # Reset row names
@@ -521,6 +557,9 @@ d2 <- d_imp[d_imp$Total_24hr_RBC != 0,c(-3,-4,-8,-10,-18,-19,-20,-31,-36,-37,-44
 # We want to test how sensitive the lasso model is for different data splits
 # Create an empty dataframe to store the MSE for each replicate
 model.eval.reg <- data.frame(trial = NA, test_mse = NA)[0,]
+
+# Create a list to keep track of which predictors are included in each model
+selected_predictors_2 <- list()
 
 for(i in 1:length(seeds)) {
   
@@ -561,8 +600,12 @@ for(i in 1:length(seeds)) {
   # We can see the value of the features that stay in the model when using the 1se lambda
   coef_min_reg <- coef(lasso.mod, s = cv.lasso.reg$lambda.1se)
   
-  # List of selected predictors, those that stayed in the model
-  rownames(coef_min_reg)[coef_min_reg[,1] != 0][-1]
+  # Extract coefficients at lambda.1se
+  non_zero_predictors <- rownames(coef_min_reg)[which(coefs != 0)]
+  non_zero_predictors <- non_zero_predictors[non_zero_predictors != "(Intercept)"]
+  
+  # Store the selected predictors for this seed
+  selected_predictors_2[[i]] <- non_zero_predictors
   
   # Make predictions on the testing set
   y_pred <- predict(lasso.mod, newx = x_test, s = cv.lasso.reg$lambda.1se)
@@ -583,6 +626,51 @@ ggplot(model.eval.reg, aes(x = trial, y = test_mse)) +
     x = "Trial",
     y = "Test MSE") +
   theme_classic()
+
+# Lets see which predictors were consistently included in the model
+
+# Summarize predictors across all seeds
+all_selected <- unlist(selected_predictors_2)
+predictor_frequency_2 <- table(all_selected)
+
+# View predictors with their selection frequency
+print(predictor_frequency_2)
+
+# Identify predictors consistently selected in at least 4 of 5 seeds
+consistent_predictors_2 <- names(predictor_frequency_2[predictor_frequency_2 > 3])
+print(consistent_predictors_2)
+
+# Nice - the same three predictors were included in all 5 models
+
+# Now that we have an idea of how consistent the model is, we can train a new
+# version using 100% of the data
+x <- model.matrix(Total_24hr_RBC ~ . , d2)[,-1]
+y <- d2$Total_24hr_RBC
+
+# Train the models
+lasso.mod <- glmnet(x,y,family="gaussian")
+
+# Plot the results against different values of log(lambda)
+plot(lasso.mod,xvar = "lambda")
+
+# for different values of lambda we are getting different coefficient estimates (weights)
+# We need to decide on an optimal value for lambda
+# We will do it by performing cross-validation
+
+cv.lasso.reg <- cv.glmnet(x,y,nfolds = 5)
+plot(cv.lasso.reg)
+
+# We can extract the value that gives the lowest Cross-validated Mean Squared Error
+cv.lasso.reg$lambda.min
+
+# We can also extract the value of lambda within the 1SE of the best value to improve parsimony
+cv.lasso.reg$lambda.1se
+
+# The MSE for those value of lambda
+print(cv.lasso.reg)
+
+# We can see the value of the features that stay in the model when using the 1se lambda
+coef_min_reg <- coef(lasso.mod, s = cv.lasso.reg$lambda.1se)
 
 # Plot the coefficients
 
