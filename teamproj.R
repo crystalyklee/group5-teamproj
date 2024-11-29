@@ -662,17 +662,19 @@ q2_summary <- tbl_summary(
 q2_summary
 
 # Mortality rate by transfusion status 
-ggplot(data3, aes(x = transfusion_status, fill = factor(death))) +
-  geom_bar(position = "stack") + 
+ggplot(data3, aes(x = factor(death), fill = factor(death))) +
+  geom_bar(position = "dodge") +
   scale_fill_manual(
-    values = c("0" = "skyblue", "1" = "maroon"),  
-    labels = c("Alive", "Dead")) +
-  labs(
-    title = "Mortality Rate by Transfusion Status",
-    x = "Transfusion Status",
-    y = "Proportion",
-    fill = ""
+    values = c("0" = "skyblue", "1" = "maroon"),
+    labels = c("Alive", "Dead")
   ) +
+  labs(
+    title = "Distribution of Death by Transfusion Status",
+    x = "Death Status",
+    y = "Count",
+    fill = "Outcome"
+  ) +
+  facet_wrap(~ transfusion_status) +
   theme_minimal() +
   theme(legend.position = "right")
 
@@ -762,6 +764,8 @@ coxmod2 <- coxph(Surv(or_death_diff, death == 1) ~ transfusion_status + Massive_
                    Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI + First_Lung_Transplant +
                    Hypertension + ECLS_ECMO, data = data3)
 
+# Include hypertension and ECLS_ECMO 
+
 coxmodsummary2 <- summary(coxmod2) 
 print(coxmodsummary2)
 
@@ -782,7 +786,7 @@ log_model_death <- glm(
 summary(log_model_death)
 
 # Stepwise AIC for best predictors
-best_log_model_death <- stepAIC(log_model_death, direction = "both")
+best_log_model_death <- stepAIC(log_model_death, direction = "backward")
 summary(best_log_model_death)
 
 # Check for multicolinearity 
@@ -801,7 +805,7 @@ full_log_alive12m <- glm(
 summary(full_log_alive12m) 
 
 # Stepwise AIC for best predictors
-best_model_alive12m <- stepAIC(full_log_alive12m, direction = "both")
+best_model_alive12m <- stepAIC(full_log_alive12m, direction = "backward")
 summary(best_model_alive12m)
 
 ####################################
