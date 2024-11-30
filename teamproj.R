@@ -582,6 +582,7 @@ library(MASS)
 library(ggplot2)
 library(car)
 library(cardx)
+library(e1071)
 
 # Calculate percentage of missing values for each column
 missing_percentage <- sapply(d_raw, function(x) sum(is.na(x)) / nrow(d_raw) * 100)
@@ -661,6 +662,127 @@ q2_summary <- tbl_summary(
 
 q2_summary
 
+outcomes_summary <- data3 %>%
+  summarise(
+    mean_ICU_LOS = mean(ICU_LOS, na.rm = TRUE),           
+    median_ICU_LOS = median(ICU_LOS, na.rm = TRUE),       
+    sd_ICU_LOS = sd(ICU_LOS, na.rm = TRUE),                
+    skew_ICU_LOS = skewness(ICU_LOS, na.rm = TRUE),        
+    iqr_ICU_LOS = IQR(ICU_LOS, na.rm = TRUE),              
+    
+    mean_HOSPITAL_LOS = mean(HOSPITAL_LOS, na.rm = TRUE),  
+    median_HOSPITAL_LOS = median(HOSPITAL_LOS, na.rm = TRUE), 
+    sd_HOSPITAL_LOS = sd(HOSPITAL_LOS, na.rm = TRUE),      
+    skew_HOSPITAL_LOS = skewness(HOSPITAL_LOS, na.rm = TRUE),
+    iqr_HOSPITAL_LOS = IQR(HOSPITAL_LOS, na.rm = TRUE)    
+  )
+
+print(outcomes_summary)
+
+blood_product_summary <- tbl_summary(
+  data3,
+  by = transfusion_status,  
+  missing = "ifany",        
+  statistic = list(
+    all_continuous() ~ "{mean} ({sd})",  
+    all_categorical() ~ "{n} ({p}%)"    
+  ),
+  label = list(  
+    Massive_Transfusion ~ "Massive Transfusion (≥10 RBC Units)",
+    Total_24hr_RBC ~ "Total RBCs in 24 Hours",
+    RBC_72hr_Total ~ "Total RBCs in 72 Hours",
+    FFP_72hr_Total ~ "Total FFP in 72 Hours",
+    Plt_72hr_Total ~ "Total Platelets in 72 Hours",
+    Cryo_72hr_Total ~ "Total Cryoprecipitate in 72 Hours",
+    Intra_Fresh_Frozen_Plasma ~ "Intraoperative Fresh Frozen Plasma",
+    Intra_Packed_Cells ~ "Intraoperative Packed Cells",
+    Intra_PCC_Octaplex ~ "Intraoperative PCC/Octaplex",
+    Intra_Platelets ~ "Intraoperative Platelets",
+    Intra_Cryoprecipitate ~ "Intraoperative Cryoprecipitate"
+  ),
+  include = c(
+    Massive_Transfusion, Total_24hr_RBC, RBC_72hr_Total, FFP_72hr_Total, 
+    Plt_72hr_Total, Cryo_72hr_Total, Intra_Fresh_Frozen_Plasma, Intra_Packed_Cells,
+    Intra_PCC_Octaplex, Intra_Platelets, Intra_Cryoprecipitate
+  )
+) %>%
+  add_p() %>%            # Add p-values to compare groups
+  italicize_levels() %>%
+  bold_labels()
+
+blood_product_summary
+
+blood_products_summary <- data3 %>%
+  summarize(
+    mean_Massive_Transfusion = mean(Massive_Transfusion, na.rm = TRUE),
+    median_Massive_Transfusion = median(Massive_Transfusion, na.rm = TRUE),
+    sd_Massive_Transfusion = sd(Massive_Transfusion, na.rm = TRUE),
+    skew_Massive_Transfusion = skewness(Massive_Transfusion, na.rm = TRUE),
+    iqr_Massive_Transfusion = IQR(Massive_Transfusion, na.rm = TRUE),
+    
+    mean_Total_24hr_RBC = mean(Total_24hr_RBC, na.rm = TRUE),
+    median_Total_24hr_RBC = median(Total_24hr_RBC, na.rm = TRUE),
+    sd_Total_24hr_RBC = sd(Total_24hr_RBC, na.rm = TRUE),
+    skew_Total_24hr_RBC = skewness(Total_24hr_RBC, na.rm = TRUE),
+    iqr_Total_24hr_RBC = IQR(Total_24hr_RBC, na.rm = TRUE),
+    
+    mean_RBC_72hr_Total = mean(RBC_72hr_Total, na.rm = TRUE),
+    median_RBC_72hr_Total = median(RBC_72hr_Total, na.rm = TRUE),
+    sd_RBC_72hr_Total = sd(RBC_72hr_Total, na.rm = TRUE),
+    skew_RBC_72hr_Total = skewness(RBC_72hr_Total, na.rm = TRUE),
+    iqr_RBC_72hr_Total = IQR(RBC_72hr_Total, na.rm = TRUE),
+    
+    mean_FFP_72hr_Total = mean(FFP_72hr_Total, na.rm = TRUE),
+    median_FFP_72hr_Total = median(FFP_72hr_Total, na.rm = TRUE),
+    sd_FFP_72hr_Total = sd(FFP_72hr_Total, na.rm = TRUE),
+    skew_FFP_72hr_Total = skewness(FFP_72hr_Total, na.rm = TRUE),
+    iqr_FFP_72hr_Total = IQR(FFP_72hr_Total, na.rm = TRUE),
+    
+    mean_Plt_72hr_Total = mean(Plt_72hr_Total, na.rm = TRUE),
+    median_Plt_72hr_Total = median(Plt_72hr_Total, na.rm = TRUE),
+    sd_Plt_72hr_Total = sd(Plt_72hr_Total, na.rm = TRUE),
+    skew_Plt_72hr_Total = skewness(Plt_72hr_Total, na.rm = TRUE),
+    iqr_Plt_72hr_Total = IQR(Plt_72hr_Total, na.rm = TRUE),
+    
+    mean_Cryo_72hr_Total = mean(Cryo_72hr_Total, na.rm = TRUE),
+    median_Cryo_72hr_Total = median(Cryo_72hr_Total, na.rm = TRUE),
+    sd_Cryo_72hr_Total = sd(Cryo_72hr_Total, na.rm = TRUE),
+    skew_Cryo_72hr_Total = skewness(Cryo_72hr_Total, na.rm = TRUE),
+    iqr_Cryo_72hr_Total = IQR(Cryo_72hr_Total, na.rm = TRUE),
+    
+    mean_Intra_Fresh_Frozen_Plasma = mean(Intra_Fresh_Frozen_Plasma, na.rm = TRUE),
+    median_Intra_Fresh_Frozen_Plasma = median(Intra_Fresh_Frozen_Plasma, na.rm = TRUE),
+    sd_Intra_Fresh_Frozen_Plasma = sd(Intra_Fresh_Frozen_Plasma, na.rm = TRUE),
+    skew_Intra_Fresh_Frozen_Plasma = skewness(Intra_Fresh_Frozen_Plasma, na.rm = TRUE),
+    iqr_Intra_Fresh_Frozen_Plasma = IQR(Intra_Fresh_Frozen_Plasma, na.rm = TRUE),
+    
+    mean_Intra_Packed_Cells = mean(Intra_Packed_Cells, na.rm = TRUE),
+    median_Intra_Packed_Cells = median(Intra_Packed_Cells, na.rm = TRUE),
+    sd_Intra_Packed_Cells = sd(Intra_Packed_Cells, na.rm = TRUE),
+    skew_Intra_Packed_Cells = skewness(Intra_Packed_Cells, na.rm = TRUE),
+    iqr_Intra_Packed_Cells = IQR(Intra_Packed_Cells, na.rm = TRUE),
+    
+    mean_Intra_PCC_Octaplex = mean(Intra_PCC_Octaplex, na.rm = TRUE),
+    median_Intra_PCC_Octaplex = median(Intra_PCC_Octaplex, na.rm = TRUE),
+    sd_Intra_PCC_Octaplex = sd(Intra_PCC_Octaplex, na.rm = TRUE),
+    skew_Intra_PCC_Octaplex = skewness(Intra_PCC_Octaplex, na.rm = TRUE),
+    iqr_Intra_PCC_Octaplex = IQR(Intra_PCC_Octaplex, na.rm = TRUE),
+    
+    mean_Intra_Platelets = mean(Intra_Platelets, na.rm = TRUE),
+    median_Intra_Platelets = median(Intra_Platelets, na.rm = TRUE),
+    sd_Intra_Platelets = sd(Intra_Platelets, na.rm = TRUE),
+    skew_Intra_Platelets = skewness(Intra_Platelets, na.rm = TRUE),
+    iqr_Intra_Platelets = IQR(Intra_Platelets, na.rm = TRUE),
+    
+    mean_Intra_Cryoprecipitate = mean(Intra_Cryoprecipitate, na.rm = TRUE),
+    median_Intra_Cryoprecipitate = median(Intra_Cryoprecipitate, na.rm = TRUE),
+    sd_Intra_Cryoprecipitate = sd(Intra_Cryoprecipitate, na.rm = TRUE),
+    skew_Intra_Cryoprecipitate = skewness(Intra_Cryoprecipitate, na.rm = TRUE),
+    iqr_Intra_Cryoprecipitate = IQR(Intra_Cryoprecipitate, na.rm = TRUE)
+  )
+
+print(blood_products_summary)
+
 # Mortality rate by transfusion status 
 ggplot(data3, aes(x = factor(death), fill = factor(death))) +
   geom_bar(position = "dodge") +
@@ -736,7 +858,7 @@ ggsurvplot(
 )
 
 # Log-rank test for survival differences by transfusion status
-logrank <- survdiff(Surv(or_death_diff, death) ~ transfusion_status, data = data3)
+logrank <- survdiff(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
 print(logrank)
 
 # Check PH assumption using cloglog
@@ -761,8 +883,8 @@ print(coxmodsummary)
 coxmod2 <- coxph(Surv(or_death_diff, death == 1) ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
                    FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
                    Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
-                   Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI + First_Lung_Transplant +
-                   Hypertension + ECLS_ECMO, data = data3)
+                   Intra_Platelets + Intra_Cryoprecipitate + gender + Age + BMI + Redo_Lung_Transplant +
+                   Hypertension + ECLS_ECMO + Intraoperative_ECLS + Fluid_Balance + Pre_Hb, data = data3)
 
 # Include hypertension and ECLS_ECMO 
 
@@ -778,7 +900,8 @@ log_model_death <- glm(
   death ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
     FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
     Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
-    Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI,
+    Intra_Platelets + Intra_Cryoprecipitate + gender + Age + BMI + Redo_Lung_Transplant +
+    Hypertension + Intraoperative_ECLS + Fluid_Balance + Pre_Hb,
   data = data3,
   family = binomial
 )
@@ -797,7 +920,8 @@ full_log_alive12m <- glm(
   alive_12m ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
     FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
     Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
-    Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI,
+    Intra_Platelets + Intra_Cryoprecipitate + gender + Age + BMI + Redo_Lung_Transplant +
+    Hypertension + Intraoperative_ECLS + Fluid_Balance + Pre_Hb,
   data = data3,
   family = binomial
 )
@@ -891,6 +1015,23 @@ wilcox_hospital <- wilcox.test(HOSPITAL_LOS ~ transfusion_status, data = data3)
 # Print Wilcoxon test results
 print(wilcox_icu)
 print(wilcox_hospital)
+
+# Evaluate median between LOS groups 
+data3 %>%
+  group_by(transfusion_status) %>%
+  summarize(
+    median_hospital_los = median(HOSPITAL_LOS, na.rm = TRUE),
+    mean_hospital_los = mean(HOSPITAL_LOS, na.rm = TRUE),
+    count = n()
+  )
+
+data3 %>%
+  group_by(transfusion_status) %>%
+  summarize(
+    median_icu_los = median(ICU_LOS, na.rm = TRUE),
+    mean_icu_los = mean(ICU_LOS, na.rm = TRUE),
+    count = n()
+  )
 
 # Boxplots for LOS by Transfusion Status
 ggplot(data3, aes(x = transfusion_status, y = ICU_LOS, fill = transfusion_status)) +
