@@ -51,6 +51,9 @@ d$`DCD vs DBD`[d$`DCD vs DBD` == "NDD"] <- "DBD"
 
 # reset the levels
 d$`DCD vs DBD` <- droplevels(d$`DCD vs DBD`)
+
+# Change pre_hct from decimal format to percent
+d$Pre_Hct <- d$Pre_Hct * 100
 summary(d)
 
 # Create a binary column indicting if the patient received blood transfusion
@@ -99,7 +102,7 @@ tbl_summary(
   italicize_levels() %>% 
   bold_labels()
 
-# Create a table summarizing commodities
+# Create a table summarizing comorbidities
 tbl_summary(
   d,
   missing = "ifany",
@@ -177,8 +180,7 @@ ggplot(data = d, aes(x = Type)) +
   scale_y_continuous(limits = c(0, 200)) +
   labs(
     x = "Transplant Type",
-    y = "Frequency",
-    title = "Distribution of Lung Transplant Types"
+    y = "Frequency"
   ) +
   theme_classic() +
   theme(plot.title = element_text(hjust = 0.5))
@@ -225,7 +227,6 @@ ggplot(comorbidity_df, aes(x = reorder(Comorbidity, Count), y = Count)) +
   coord_flip() +                                      
   geom_text(aes(label = Count), vjust = 0.5, hjust = -0.3, size = 5) +
   labs(
-    title = "Patient Comorbidities",
     x = "Comorbidity",
     y = "Frequency") +      
   theme_classic() +                                   
@@ -302,7 +303,7 @@ for(var in pre_vars) {
   plot_list_2[[var]] <- p
 }
 
-grid.arrange(grobs = plot_list_2, ncol = 3)
+grid.arrange(grobs = plot_list_2, ncol = 2)
 
 # Create histograms for important intra-operative vars
 
@@ -339,7 +340,7 @@ for(var in intra_vars) {
   plot_list_3[[var]] <- p
 }
 
-grid.arrange(grobs = plot_list_3, ncol = 3)
+grid.arrange(grobs = plot_list_3, ncol = 2)
 
 ###########################################
 ## Comparing Lasso Model and Tree Models ##
@@ -468,6 +469,11 @@ for (i in 1:length(seeds)) {
 # Create a column graph to show the area under the curve for each model for each split
 ggplot(model.eval, aes(x = trial, y = auc, fill = model)) +
   geom_bar(stat = "identity", position = position_dodge(), color = "black") +
+  scale_y_continuous(limits = c(0,1))+
+  labs(
+    x = "Trial",
+    y = "AUC"
+  )+
   theme_classic()
 
 # It seems the lasso classification model is consistently better than the tree models
@@ -511,8 +517,8 @@ cv.lasso$lambda.min
 cv.lasso$lambda.1se
 
 # Find the predictors in the model
-coef(lasso.mod, s = cv.lasso$lambda.min)
-coef_min_class <- coef(lasso.mod, s = cv.lasso$lambda.min)
+coef(lasso.mod, s = cv.lasso$lambda.1se)
+coef_min_class <- coef(lasso.mod, s = cv.lasso$lambda.1se)
 
 # Plot the coefficients
 
@@ -601,7 +607,7 @@ for(i in 1:length(seeds)) {
   coef_min_reg <- coef(lasso.mod, s = cv.lasso.reg$lambda.1se)
   
   # Extract coefficients at lambda.1se
-  non_zero_predictors <- rownames(coef_min_reg)[which(coefs != 0)]
+  non_zero_predictors <- rownames(coef_min_reg)[which(coef_min_reg != 0)]
   non_zero_predictors <- non_zero_predictors[non_zero_predictors != "(Intercept)"]
   
   # Store the selected predictors for this seed
@@ -639,8 +645,6 @@ print(predictor_frequency_2)
 # Identify predictors consistently selected in at least 4 of 5 seeds
 consistent_predictors_2 <- names(predictor_frequency_2[predictor_frequency_2 > 3])
 print(consistent_predictors_2)
-
-# Nice - the same three predictors were included in all 5 models
 
 # Now that we have an idea of how consistent the model is, we can train a new
 # version using 100% of the data
@@ -685,6 +689,9 @@ coef_df_reg$Predictor <- rownames(coef_df_reg)
 
 # Filter for non-zero coefficients
 coef_df_reg <- coef_df_reg[coef_df_reg$Coefficient != 0, ]
+
+# Only keep predictors that were in at least 4 of 5 models
+coef_df_reg <- coef_df_reg[coef_df_reg$Predictor %in% consistent_predictors_2,]
 
 # Sort predictors by magnitude of coefficients (optional)
 coef_df_reg <- coef_df_reg[order(abs(coef_df_reg$Coefficient), decreasing = TRUE), ]
