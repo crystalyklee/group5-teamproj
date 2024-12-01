@@ -634,6 +634,7 @@ data3 <- d_imp_bind %>%
     death = as.factor(if_else(is.na(death_date), 0, 1)), # death indicator
     transfusion_status = as.factor(ifelse(Total_24hr_RBC > 0, "Transfusion", "No Transfusion")),
     alive_12m = factor(ALIVE_12MTHS_YN, levels = c("N", "Y"), labels = c("No", "Yes")),
+    Massive_Transfusion = as.factor(Massive_Transfusion)
     
   )
 
@@ -714,12 +715,6 @@ blood_product_summary
 
 blood_products_summary <- data3 %>%
   summarize(
-    mean_Massive_Transfusion = mean(Massive_Transfusion, na.rm = TRUE),
-    median_Massive_Transfusion = median(Massive_Transfusion, na.rm = TRUE),
-    sd_Massive_Transfusion = sd(Massive_Transfusion, na.rm = TRUE),
-    skew_Massive_Transfusion = skewness(Massive_Transfusion, na.rm = TRUE),
-    iqr_Massive_Transfusion = IQR(Massive_Transfusion, na.rm = TRUE),
-    
     mean_Total_24hr_RBC = mean(Total_24hr_RBC, na.rm = TRUE),
     median_Total_24hr_RBC = median(Total_24hr_RBC, na.rm = TRUE),
     sd_Total_24hr_RBC = sd(Total_24hr_RBC, na.rm = TRUE),
@@ -782,6 +777,23 @@ blood_products_summary <- data3 %>%
   )
 
 print(blood_products_summary)
+
+# Distribution of transfusion status in bar plot
+ggplot(data3, aes(x = transfusion_status, fill = transfusion_status)) +
+  geom_bar() +
+  scale_fill_manual(values = c("skyblue", "lightpink")) +  
+  labs(
+    title = "Distribution of Transfusion Status",
+    x = "Transfusion Status",
+    y = "Count",
+    fill = "Transfusion Status"
+  ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 14),
+    plot.title = element_text(hjust = 0.5, face = "bold"),  
+    legend.position = "none"  # Remove legend if unnecessary
+  )
 
 # Mortality rate by transfusion status 
 ggplot(data3, aes(x = factor(death), fill = factor(death))) +
@@ -900,8 +912,7 @@ log_model_death <- glm(
   death ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
     FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
     Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
-    Intra_Platelets + Intra_Cryoprecipitate + gender + Age + BMI + Redo_Lung_Transplant +
-    Hypertension + Intraoperative_ECLS + Fluid_Balance + Pre_Hb,
+    Intra_Platelets + Intra_Cryoprecipitate + gender + Age + BMI,
   data = data3,
   family = binomial
 )
@@ -920,8 +931,7 @@ full_log_alive12m <- glm(
   alive_12m ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
     FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
     Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
-    Intra_Platelets + Intra_Cryoprecipitate + gender + Age + BMI + Redo_Lung_Transplant +
-    Hypertension + Intraoperative_ECLS + Fluid_Balance + Pre_Hb,
+    Intra_Platelets + Intra_Cryoprecipitate + gender + Age + BMI,
   data = data3,
   family = binomial
 )
