@@ -799,7 +799,7 @@ ggplot(data3, aes(x = transfusion_status, fill = transfusion_status)) +
 ggplot(data3, aes(x = factor(death), fill = factor(death))) +
   geom_bar(position = "dodge") +
   scale_fill_manual(
-    values = c("0" = "skyblue", "1" = "maroon"),
+    values = c("0" = "skyblue", "1" = "lightpink"),
     labels = c("Alive", "Dead")
   ) +
   labs(
