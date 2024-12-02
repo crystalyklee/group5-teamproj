@@ -1,6 +1,3 @@
-
-# Brainstorm for Q1
-
 library(readxl)
 library(tidyverse)
 library(mice)
@@ -19,9 +16,10 @@ library(grid)
 #setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
 setwd("~/Desktop/UTM/BTC1877/group5-teamproj") # crystal's wd
 
+set.seed(4)
+
 d_raw <- read_excel("transfusion data.xlsx")
 
-View(d_raw)
 summary(d_raw)
 
 # remove irrelevant columns
@@ -53,6 +51,9 @@ d$`DCD vs DBD`[d$`DCD vs DBD` == "NDD"] <- "DBD"
 
 # reset the levels
 d$`DCD vs DBD` <- droplevels(d$`DCD vs DBD`)
+
+# Change pre_hct from decimal format to percent
+d$Pre_Hct <- d$Pre_Hct * 100
 summary(d)
 
 # Create a binary column indicting if the patient received blood transfusion
@@ -101,7 +102,7 @@ tbl_summary(
   italicize_levels() %>% 
   bold_labels()
 
-# Create a table summarizing commodities
+# Create a table summarizing comorbidities
 tbl_summary(
   d,
   missing = "ifany",
@@ -148,17 +149,17 @@ tbl_summary(
     Pre_PT ~ "Preoperative Prothrombin Time (s)",
     Pre_INR ~ "Preoperative INR",
     Pre_PTT ~ "Preoperative PTT (s)",
-    Pre_Creatinine ~ "Preoperative Creatinine (mg/dL)",
-    Intraoperative_ECLS ~ "Intraoperative ECLS (ECMO)",
+    Pre_Creatinine ~ "Preoperative Creatinine (µmol/L)",
+    Intraoperative_ECLS ~ "Intraoperative ECLS",
     ECLS_ECMO ~ "ECLS ECMO",
     ECLS_CPB ~ "ECLS Cardiopulmonary Bypass",
-    Intra_Albumin_5_mL_ ~ "Intraoperative Albumin (5mL)",
+    Intra_Albumin_5_mL_ ~ "Intraoperative Albumin 5% (mL)",
     Intra_Crystalloid_mL_ ~ "Intraoperative Crystalloid (mL)",
     Intra_Cell_Saver_returned_mL_ ~ "Intraoperative Cell Saver Returned (mL)",
     Blood_Loss ~ "Blood Loss (mL)",
     Urine_Output ~ "Urine Output (mL)",
     Fluid_Balance ~ "Fluid Balance (mL)",
-    Tranexamic_Acid_Used ~ "Tranexamic Acid Used (1 = Yes)"
+    Tranexamic_Acid_Used ~ "Tranexamic Acid Used"
   ),
   include = c(Pre_Hb, Pre_Hct, Pre_Platelets, Pre_PT, Pre_INR, Pre_PTT, Pre_Creatinine, 
               Intraoperative_ECLS, ECLS_ECMO, ECLS_CPB, Intra_Albumin_5_mL_, 
@@ -179,8 +180,7 @@ ggplot(data = d, aes(x = Type)) +
   scale_y_continuous(limits = c(0, 200)) +
   labs(
     x = "Transplant Type",
-    y = "Frequency",
-    title = "Distribution of Lung Transplant Types"
+    y = "Frequency"
   ) +
   theme_classic() +
   theme(plot.title = element_text(hjust = 0.5))
@@ -221,13 +221,12 @@ comorbidity_df <- comorbidity_df %>%
     )
   )
 
-# Plot the frequency of comorbidities
+# Plot the frequency of commodities
 ggplot(comorbidity_df, aes(x = reorder(Comorbidity, Count), y = Count)) +
   geom_col(col = "black", fill = "lightblue") +
   coord_flip() +                                      
   geom_text(aes(label = Count), vjust = 0.5, hjust = -0.3, size = 5) +
   labs(
-    title = "Patient Comorbidities",
     x = "Comorbidity",
     y = "Frequency") +      
   theme_classic() +                                   
@@ -286,7 +285,7 @@ x_lab_hist_pre <- c("Pre_Hb" = "Preoperative Hemoglobin Level (g/L)",
                     "Pre_PT" = "Preoperative Prothrombin Time (s)",
                     "Pre_INR" = "Preoperative INR Index",
                     "Pre_PTT" = "Partial Thromboplastin Time (s)",
-                    "Pre_Creatinine" = "Preoperative Creatinine Level (mg/dL)")
+                    "Pre_Creatinine" = "Preoperative Creatinine Level (µmol/L)")
 
 for(var in pre_vars) {
   
@@ -304,25 +303,27 @@ for(var in pre_vars) {
   plot_list_2[[var]] <- p
 }
 
-grid.arrange(grobs = plot_list_2, ncol = 3)
+grid.arrange(grobs = plot_list_2, ncol = 2)
 
 # Create histograms for important intra-operative vars
 
 plot_list_3 <- list()
 
-intra_vars <- c("Intra_Albumin_5_mL_", "Intra_Crystalloid_mL_", "Intra_Cell_Saver_returned_mL_", "Blood_Loss", "Fluid_Balance")
+intra_vars <- c("Intra_Albumin_5_mL_", "Intra_Crystalloid_mL_", "Intra_Cell_Saver_returned_mL_", "Blood_Loss", "Fluid_Balance", "Total_24hr_RBC")
 
 title_hist_intra<- c("Intra_Albumin_5_mL_" = "Distribution of Intraoperative Albumin \nAdministered",
                    "Intra_Crystalloid_mL_" = "Distribution of Intraoperative Crystalloid \nAdministered",
                    "Intra_Cell_Saver_returned_mL_" = "Distribution of Intraoperative Cell Saver Volume \nReturned",
                    "Blood_Loss" = "Distribution of Intraoperative Blood Loss",
-                   "Fluid_Balance" = "Distribution of Intraoperative Fluid Balance")
+                   "Fluid_Balance" = "Distribution of Intraoperative Fluid Balance",
+                   "Total_24hr_RBC" = "Number of RBCs Transfused within 24 Hours \nof Surgery")
 
 x_lab_hist_intra <- c("Intra_Albumin_5_mL_" = "Intraoperative Albumin Administered 5% (mL)",
                     "Intra_Crystalloid_mL_" = "Intraoperative Crystalloid Administered (mL)",
                     "Intra_Cell_Saver_returned_mL_" = "Intraoperative Cell Saver Volume Returned (mL)",
                     "Blood_Loss" = "Intraoperative Blood Loss (mL)",
-                    "Fluid_Balance" = "Intraoperative Fluid Balance (mL)")
+                    "Fluid_Balance" = "Intraoperative Fluid Balance (mL)",
+                    "Total_24hr_RBC" = "Number of RBCs Transfused")
 
 
 for(var in intra_vars) {
@@ -341,29 +342,38 @@ for(var in intra_vars) {
   plot_list_3[[var]] <- p
 }
 
-grid.arrange(grobs = plot_list_3, ncol = 3)
+grid.arrange(grobs = plot_list_3, ncol = 2)
 
 ###########################################
 ## Comparing Lasso Model and Tree Models ##
 ###########################################
 
 # Create a version of the data without the RBC count because that is not a predictor
-d1 <- d_imp[,-45]
+
+# Since BMI, weight, and height will include co-linearity, we can keep just BMI
+# Also, pre-INR is a standardized version of pre-PT, so we can keep only the standardized one
+# Similarly, we can keep only intraoperative_ECLS since it accounts for both ECMO and CPB.
+
+# Also, can exclude binary predictors with fewer than 5% in one of the levels:
+# a1t, idiopathic pulmonary, renal failure, stroke, liver disease, and tranexamic acid
+
+d1 <- d_imp[,c(-3,-4,-8,-10,-18,-19,-20,-31,-36,-37,-44,-45)]
 
 # Create an empty dataframe to store the AUC for each model and respective replicates
 model.eval <- data.frame(model = NA, trial = NA, auc = NA)[0,]
 
+# Create a list to keep track of which predictors are included in each model
+selected_predictors <- list()
+
 # Pick 5 seeds to randomize the testing/training split
 seeds <- sample(1:1000, 5)
-
-roc_plots <- list()
 
 d1$transfusion <- as.factor(as.numeric(d1$transfusion))
 
 # For each seed, create and evaluate the models (via AUC)
 for (i in 1:length(seeds)) {
   
-  # Split data into training and test, equal size
+  # Split data into training and test
   set.seed(seeds[i])
   train.I <- sample(nrow(d1),round(nrow(d1)/(10/7)))
   
@@ -383,18 +393,25 @@ for (i in 1:length(seeds)) {
   cv.lasso <- cv.glmnet(x,y,alpha=1,family = "binomial", type.measure = "auc", nfolds = 5)
   plot(cv.lasso)
   
-  # Extract the value of lambda
+  # Extract the value of lambda that maximizes auc
+  # also extract the 1SE value of lambda that yields a more parsimonious model
   cv.lasso$lambda.min
+  cv.lasso$lambda.1se
   
-  # Find the predictors in the model
-  coef(cv.lasso, s = "lambda.min")
+  # Extract coefficients at lambda.1se
+  coefs <- coef(lasso.mod, s = cv.lasso$lambda.1se)
+  non_zero_predictors <- rownames(coefs)[which(coefs != 0)]
+  non_zero_predictors <- non_zero_predictors[non_zero_predictors != "(Intercept)"]
+  
+  # Store the selected predictors for this seed
+  selected_predictors[[i]] <- non_zero_predictors
   
   # Create predictions for the test set
-  pred.lasso <- as.numeric(predict(lasso.mod, newx = model.matrix(transfusion ~.,d1)[-train.I,-1], s=cv.lasso$lambda.min, type = "response"))
+  pred.lasso <- as.numeric(predict(lasso.mod, newx = model.matrix(transfusion ~.,d1)[-train.I,-1], s=cv.lasso$lambda.1se, type = "response"))
   
   # Plot the ROC curve
   myroc <- roc(transfusion ~ pred.lasso, data=d1[-train.I,])
-  ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve with Diagonal Line")
+  ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve")
   
   # Extracting the Area Under the Curve, a measure of discrimination
   auc.lasso <- myroc$auc
@@ -454,28 +471,69 @@ for (i in 1:length(seeds)) {
 # Create a column graph to show the area under the curve for each model for each split
 ggplot(model.eval, aes(x = trial, y = auc, fill = model)) +
   geom_bar(stat = "identity", position = position_dodge(), color = "black") +
+  scale_y_continuous(limits = c(0,1))+
+  labs(
+    x = "Trial",
+    y = "AUC"
+  )+
+  theme_classic()
+
+ggplot(model.eval, aes(x = trial, y = auc, fill = model)) +
+  geom_bar(stat = "identity", position = position_dodge(), color = "black") +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_fill_manual(
+    values = c("Lasso" = "#0f599a", "Pruned Tree" = "#1E9AD6", "Unpruned Tree" = "lightblue") # Replace with your model names and desired colors
+  ) +
+  labs(
+    x = "Trial",
+    y = "AUC",
+    fill = "Model"
+  ) +
   theme_classic()
 
 # It seems the lasso classification model is consistently better than the tree models
+
+# Lets see which predictors were consistently included in the model
+
+# Summarize predictors across all seeds
+all_selected <- unlist(selected_predictors)
+predictor_frequency <- table(all_selected)
+
+# View predictors with their selection frequency
+print(predictor_frequency)
+
+# Identify predictors consistently selected in at least 4 of 5 seeds
+consistent_predictors <- names(predictor_frequency[predictor_frequency > 3])
+print(consistent_predictors)
 
 ########################
 ## Create Lasso Model ##
 ########################
 
-# See the results of the lasso model 
+# Now that we know the lasso model is the best choice, we can fit a lasso model
+# using 100% of the data
 
-# Extract the value of lambda
+# Create model matrix, exclude intercept column
+x <- model.matrix(transfusion ~.,d1)[,-1]
+
+# Create a vector with the response values
+y <- d1$transfusion
+
+# Fit the model
+lasso.mod <- glmnet(x,y,family="binomial")
+
+# Use cross validation (k=5) to determine the optimal value of lambda
+cv.lasso <- cv.glmnet(x,y,alpha=1,family = "binomial", type.measure = "auc", nfolds = 5)
+plot(cv.lasso)
+
+# Extract the value of lambda that maximizes auc
+# also extract the 1SE value of lambda that yields a more parsimonious model
 cv.lasso$lambda.min
+cv.lasso$lambda.1se
 
 # Find the predictors in the model
-coef(cv.lasso, s = "lambda.min")
-coef_min_class <- coef(cv.lasso, s = "lambda.min")
-
-# Plot ROC
-ggroc(myroc) + geom_abline(slope = 1, intercept = 1, linetype = "dashed", color = "red") + theme_classic() + ggtitle("ROC Curve with Diagonal Line")
-
-# Determine auc
-auc.lasso
+coef(lasso.mod, s = cv.lasso$lambda.1se)
+coef_min_class <- coef(lasso.mod, s = cv.lasso$lambda.1se)
 
 # Plot the coefficients
 
@@ -491,7 +549,10 @@ coef_df_class$Predictor <- rownames(coef_df_class)
 # Filter for non-zero coefficients
 coef_df_class <- coef_df_class[coef_df_class$Coefficient != 0, ]
 
-# Sort predictors by magnitude of coefficients (optional)
+# Only include features that were included in the model consistently
+coef_df_class <- coef_df_class[coef_df_class$Predictor %in% consistent_predictors,]
+
+# Sort predictors by magnitude of coefficients
 coef_df_class <- coef_df_class[order(abs(coef_df_class$Coefficient), decreasing = TRUE), ]
 
 # Reset row names
@@ -508,12 +569,101 @@ ggplot(coef_df_class, aes(x = reorder(Predictor, Coefficient), y = Coefficient, 
 ## Regression Lasso Model ##
 ############################
 
-d2 <- d_imp[d_imp$Total_24hr_RBC != 0,-46]
+# Remove the binary column showing if the patient received transfusion
+# Remove variables that may introduce co-linearity (same vars as model above)
+# Remove binary variables with fewer than 5% in a level (same vars as model above)
+# Also, only include patients who received transfusion
+d2 <- d_imp[d_imp$Total_24hr_RBC != 0,c(-3,-4,-8,-10,-18,-19,-20,-31,-36,-37,-44,-46)]
 
-# Obtain a matrix with the feature values
+# We want to test how sensitive the lasso model is for different data splits
+# Create an empty dataframe to store the MSE for each replicate
+model.eval.reg <- data.frame(trial = NA, test_mse = NA)[0,]
+
+# Create a list to keep track of which predictors are included in each model
+selected_predictors_2 <- list()
+
+for(i in 1:length(seeds)) {
+  
+  # Split data into training and test
+  set.seed(seeds[i])
+  train.I <- sample(nrow(d2), round(nrow(d2)/(10/7)))
+  
+  # Obtain a matrix with the feature values
+  x <- model.matrix(Total_24hr_RBC ~ . , d2)[train.I,-1]
+  x_test <- model.matrix(Total_24hr_RBC ~ . , d2)[-train.I,-1]
+  
+  # Create a vector with the response values
+  y <- d2$Total_24hr_RBC[train.I]
+  y_test <- d2$Total_24hr_RBC[-train.I]
+  
+  # Train the models
+  lasso.mod <- glmnet(x,y,family="gaussian")
+  
+  # Plot the results against different values of log(lambda)
+  plot(lasso.mod,xvar = "lambda")
+  
+  # for different values of lambda we are getting different coefficient estimates (weights)
+  # We need to decide on an optimal value for lambda
+  # We will do it by performing cross-validation
+  
+  cv.lasso.reg <- cv.glmnet(x,y,nfolds = 5)
+  plot(cv.lasso.reg)
+  
+  # We can extract the value that gives the lowest Cross-validated Mean Squared Error
+  cv.lasso.reg$lambda.min
+  
+  # We can also extract the value of lambda within the 1SE of the best value to improve parsimony
+  cv.lasso.reg$lambda.1se
+  
+  # The MSE for those value of lambda
+  print(cv.lasso.reg)
+  
+  # We can see the value of the features that stay in the model when using the 1se lambda
+  coef_min_reg <- coef(lasso.mod, s = cv.lasso.reg$lambda.1se)
+  
+  # Extract coefficients at lambda.1se
+  non_zero_predictors <- rownames(coef_min_reg)[which(coef_min_reg != 0)]
+  non_zero_predictors <- non_zero_predictors[non_zero_predictors != "(Intercept)"]
+  
+  # Store the selected predictors for this seed
+  selected_predictors_2[[i]] <- non_zero_predictors
+  
+  # Make predictions on the testing set
+  y_pred <- predict(lasso.mod, newx = x_test, s = cv.lasso.reg$lambda.1se)
+  
+  # Calculate the Mean Squared Error (MSE) on the testing set
+  mse_test <- mean((y_test - y_pred)^2)
+  
+  # Update the dataframe with the test_mse
+  new_row <- data.frame(trial = i, test_mse = mse_test)
+  model.eval.reg <- rbind(model.eval.reg, new_row)
+  
+}
+
+# Create a column graph to show the test MSE for each split
+ggplot(model.eval.reg, aes(x = trial, y = test_mse)) +
+  geom_col(fill = "lightblue", color = "black") +
+  labs(
+    x = "Trial",
+    y = "Test MSE") +
+  theme_classic()
+
+# Lets see which predictors were consistently included in the model
+
+# Summarize predictors across all seeds
+all_selected <- unlist(selected_predictors_2)
+predictor_frequency_2 <- table(all_selected)
+
+# View predictors with their selection frequency
+print(predictor_frequency_2)
+
+# Identify predictors consistently selected in at least 4 of 5 seeds
+consistent_predictors_2 <- names(predictor_frequency_2[predictor_frequency_2 > 3])
+print(consistent_predictors_2)
+
+# Now that we have an idea of how consistent the model is, we can train a new
+# version using 100% of the data
 x <- model.matrix(Total_24hr_RBC ~ . , d2)[,-1]
-
-# Create a vector with the response values
 y <- d2$Total_24hr_RBC
 
 # Train the models
@@ -526,22 +676,20 @@ plot(lasso.mod,xvar = "lambda")
 # We need to decide on an optimal value for lambda
 # We will do it by performing cross-validation
 
-set.seed(123)
-
 cv.lasso.reg <- cv.glmnet(x,y,nfolds = 5)
 plot(cv.lasso.reg)
 
 # We can extract the value that gives the lowest Cross-validated Mean Squared Error
 cv.lasso.reg$lambda.min
 
-# The MSE for that value of lambda
+# We can also extract the value of lambda within the 1SE of the best value to improve parsimony
+cv.lasso.reg$lambda.1se
+
+# The MSE for those value of lambda
 print(cv.lasso.reg)
 
-# We can see the value of the features that stay in the model when using the optimal lambda
-coef_min_reg <- coef(cv.lasso.reg, s = "lambda.min")
-
-# List of selected predictors, those that stayed in the model
-rownames(coef_min_reg)[coef_min_reg[,1] != 0][-1]
+# We can see the value of the features that stay in the model when using the 1se lambda
+coef_min_reg <- coef(lasso.mod, s = cv.lasso.reg$lambda.1se)
 
 # Plot the coefficients
 
@@ -556,6 +704,9 @@ coef_df_reg$Predictor <- rownames(coef_df_reg)
 
 # Filter for non-zero coefficients
 coef_df_reg <- coef_df_reg[coef_df_reg$Coefficient != 0, ]
+
+# Only keep predictors that were in at least 4 of 5 models
+coef_df_reg <- coef_df_reg[coef_df_reg$Predictor %in% consistent_predictors_2,]
 
 # Sort predictors by magnitude of coefficients (optional)
 coef_df_reg <- coef_df_reg[order(abs(coef_df_reg$Coefficient), decreasing = TRUE), ]
@@ -979,12 +1130,19 @@ data3 %>%
   )
 
 # Boxplots for LOS by Transfusion Status
-ggplot(data3, aes(x = transfusion_status, y = ICU_LOS, fill = transfusion_status)) +
+ggplot(data3, aes(x = transfusion_status, y = log(ICU_LOS), fill = transfusion_status)) +
   geom_boxplot() +
-  labs(title = "ICU Length of Stay by Transfusion Status", x = "Transfusion Status", y = "ICU LOS (days)") +
-  theme_minimal()
+  scale_fill_manual(values = c("skyblue", "lightpink")) +
+  labs(title = "ICU Length of Stay by Transfusion Status", 
+       x = "Transfusion Status", 
+       y = "Log ICU LOS (days)", 
+       fill = "Log Transfusion Status") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
 
-ggplot(data3, aes(x = transfusion_status, y = HOSPITAL_LOS, fill = transfusion_status)) +
+ggplot(data3, aes(x = transfusion_status, y = log(HOSPITAL_LOS), fill = transfusion_status)) +
   geom_boxplot() +
-  labs(title = "Hospital Length of Stay by Transfusion Status", x = "Transfusion Status", y = "Hospital LOS (days)") +
-  theme_minimal()
+  scale_fill_manual(values = c("skyblue", "lightpink"))+
+  labs(title = "Hospital Length of Stay by Transfusion Status", x = "Transfusion Status", y = " Log Hospital LOS (days)", fill = "Tranfusion Status") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))  
