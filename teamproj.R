@@ -713,71 +713,6 @@ blood_product_summary <- tbl_summary(
 
 blood_product_summary
 
-blood_products_summary <- data3 %>%
-  summarize(
-    mean_Total_24hr_RBC = mean(Total_24hr_RBC, na.rm = TRUE),
-    median_Total_24hr_RBC = median(Total_24hr_RBC, na.rm = TRUE),
-    sd_Total_24hr_RBC = sd(Total_24hr_RBC, na.rm = TRUE),
-    skew_Total_24hr_RBC = skewness(Total_24hr_RBC, na.rm = TRUE),
-    iqr_Total_24hr_RBC = IQR(Total_24hr_RBC, na.rm = TRUE),
-    
-    mean_RBC_72hr_Total = mean(RBC_72hr_Total, na.rm = TRUE),
-    median_RBC_72hr_Total = median(RBC_72hr_Total, na.rm = TRUE),
-    sd_RBC_72hr_Total = sd(RBC_72hr_Total, na.rm = TRUE),
-    skew_RBC_72hr_Total = skewness(RBC_72hr_Total, na.rm = TRUE),
-    iqr_RBC_72hr_Total = IQR(RBC_72hr_Total, na.rm = TRUE),
-    
-    mean_FFP_72hr_Total = mean(FFP_72hr_Total, na.rm = TRUE),
-    median_FFP_72hr_Total = median(FFP_72hr_Total, na.rm = TRUE),
-    sd_FFP_72hr_Total = sd(FFP_72hr_Total, na.rm = TRUE),
-    skew_FFP_72hr_Total = skewness(FFP_72hr_Total, na.rm = TRUE),
-    iqr_FFP_72hr_Total = IQR(FFP_72hr_Total, na.rm = TRUE),
-    
-    mean_Plt_72hr_Total = mean(Plt_72hr_Total, na.rm = TRUE),
-    median_Plt_72hr_Total = median(Plt_72hr_Total, na.rm = TRUE),
-    sd_Plt_72hr_Total = sd(Plt_72hr_Total, na.rm = TRUE),
-    skew_Plt_72hr_Total = skewness(Plt_72hr_Total, na.rm = TRUE),
-    iqr_Plt_72hr_Total = IQR(Plt_72hr_Total, na.rm = TRUE),
-    
-    mean_Cryo_72hr_Total = mean(Cryo_72hr_Total, na.rm = TRUE),
-    median_Cryo_72hr_Total = median(Cryo_72hr_Total, na.rm = TRUE),
-    sd_Cryo_72hr_Total = sd(Cryo_72hr_Total, na.rm = TRUE),
-    skew_Cryo_72hr_Total = skewness(Cryo_72hr_Total, na.rm = TRUE),
-    iqr_Cryo_72hr_Total = IQR(Cryo_72hr_Total, na.rm = TRUE),
-    
-    mean_Intra_Fresh_Frozen_Plasma = mean(Intra_Fresh_Frozen_Plasma, na.rm = TRUE),
-    median_Intra_Fresh_Frozen_Plasma = median(Intra_Fresh_Frozen_Plasma, na.rm = TRUE),
-    sd_Intra_Fresh_Frozen_Plasma = sd(Intra_Fresh_Frozen_Plasma, na.rm = TRUE),
-    skew_Intra_Fresh_Frozen_Plasma = skewness(Intra_Fresh_Frozen_Plasma, na.rm = TRUE),
-    iqr_Intra_Fresh_Frozen_Plasma = IQR(Intra_Fresh_Frozen_Plasma, na.rm = TRUE),
-    
-    mean_Intra_Packed_Cells = mean(Intra_Packed_Cells, na.rm = TRUE),
-    median_Intra_Packed_Cells = median(Intra_Packed_Cells, na.rm = TRUE),
-    sd_Intra_Packed_Cells = sd(Intra_Packed_Cells, na.rm = TRUE),
-    skew_Intra_Packed_Cells = skewness(Intra_Packed_Cells, na.rm = TRUE),
-    iqr_Intra_Packed_Cells = IQR(Intra_Packed_Cells, na.rm = TRUE),
-    
-    mean_Intra_PCC_Octaplex = mean(Intra_PCC_Octaplex, na.rm = TRUE),
-    median_Intra_PCC_Octaplex = median(Intra_PCC_Octaplex, na.rm = TRUE),
-    sd_Intra_PCC_Octaplex = sd(Intra_PCC_Octaplex, na.rm = TRUE),
-    skew_Intra_PCC_Octaplex = skewness(Intra_PCC_Octaplex, na.rm = TRUE),
-    iqr_Intra_PCC_Octaplex = IQR(Intra_PCC_Octaplex, na.rm = TRUE),
-    
-    mean_Intra_Platelets = mean(Intra_Platelets, na.rm = TRUE),
-    median_Intra_Platelets = median(Intra_Platelets, na.rm = TRUE),
-    sd_Intra_Platelets = sd(Intra_Platelets, na.rm = TRUE),
-    skew_Intra_Platelets = skewness(Intra_Platelets, na.rm = TRUE),
-    iqr_Intra_Platelets = IQR(Intra_Platelets, na.rm = TRUE),
-    
-    mean_Intra_Cryoprecipitate = mean(Intra_Cryoprecipitate, na.rm = TRUE),
-    median_Intra_Cryoprecipitate = median(Intra_Cryoprecipitate, na.rm = TRUE),
-    sd_Intra_Cryoprecipitate = sd(Intra_Cryoprecipitate, na.rm = TRUE),
-    skew_Intra_Cryoprecipitate = skewness(Intra_Cryoprecipitate, na.rm = TRUE),
-    iqr_Intra_Cryoprecipitate = IQR(Intra_Cryoprecipitate, na.rm = TRUE)
-  )
-
-print(blood_products_summary)
-
 # Distribution of transfusion status in bar plot
 ggplot(data3, aes(x = transfusion_status, fill = transfusion_status)) +
   geom_bar() +
@@ -1044,42 +979,12 @@ data3 %>%
   )
 
 # Boxplots for LOS by Transfusion Status
-# ICU Length of Stay by Transfusion Status
 ggplot(data3, aes(x = transfusion_status, y = ICU_LOS, fill = transfusion_status)) +
   geom_boxplot() +
-  scale_fill_manual(values = c("skyblue", "lightpink")) +  # Custom colors
-  labs(
-    title = "ICU Length of Stay by Transfusion Status", 
-    x = "Transfusion Status", 
-    y = "ICU LOS (days)"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid = element_blank(),  # Remove gridlines
-    panel.background = element_rect(fill = "white"),  # Set background to white
-    plot.margin = margin(20, 20, 40, 20),  # Adjust plot margins (top, right, bottom, left)
-    axis.text = element_text(size = 12),  # Adjust axis text size
-    axis.title = element_text(size = 14),  # Adjust axis title size
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)  # Center and enlarge title
-  ) +
-  coord_cartesian(clip = "off")  # Prevent clipping at the margins
+  labs(title = "ICU Length of Stay by Transfusion Status", x = "Transfusion Status", y = "ICU LOS (days)") +
+  theme_minimal()
 
-# Hospital Length of Stay by Transfusion Status
 ggplot(data3, aes(x = transfusion_status, y = HOSPITAL_LOS, fill = transfusion_status)) +
   geom_boxplot() +
-  scale_fill_manual(values = c("skyblue", "lightpink")) +  # Custom colors
-  labs(
-    title = "Hospital Length of Stay by Transfusion Status", 
-    x = "Transfusion Status", 
-    y = "Hospital LOS (days)"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.grid = element_blank(),  # Remove gridlines
-    panel.background = element_rect(fill = "white"),  # Set background to white
-    plot.margin = margin(20, 20, 40, 20),  # Adjust plot margins (top, right, bottom, left)
-    axis.text = element_text(size = 12),  # Adjust axis text size
-    axis.title = element_text(size = 14),  # Adjust axis title size
-    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)  # Center and enlarge title
-  ) +
-  coord_cartesian(clip = "off")  # Prevent clipping at the margins
+  labs(title = "Hospital Length of Stay by Transfusion Status", x = "Transfusion Status", y = "Hospital LOS (days)") +
+  theme_minimal()
