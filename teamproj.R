@@ -16,8 +16,8 @@ library(grid)
 ## Data Prep ##
 ###############
 
-setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
-#setwd("~/Desktop/UTM/BTC1877/group5-teamproj") # crystal's wd
+#setwd("C:/Users/ibrah/Desktop/Data Science in Health II/group5-teamproj")
+setwd("~/Desktop/UTM/BTC1877/group5-teamproj") # crystal's wd
 
 d_raw <- read_excel("transfusion data.xlsx")
 
@@ -582,6 +582,7 @@ library(MASS)
 library(ggplot2)
 library(car)
 library(cardx)
+library(e1071)
 
 # Calculate percentage of missing values for each column
 missing_percentage <- sapply(d_raw, function(x) sum(is.na(x)) / nrow(d_raw) * 100)
@@ -631,8 +632,9 @@ data3 <- d_imp_bind %>%
     death_date = dmy(DEATH_DATE, tz = "UTC"),  
     or_death_diff = if_else(is.na(death_date), 365, as.numeric(death_date - OR_Date)),
     death = as.factor(if_else(is.na(death_date), 0, 1)), # death indicator
-    transfusion_status = ifelse(Total_24hr_RBC > 0, "Transfusion", "No Transfusion"),
+    transfusion_status = as.factor(ifelse(Total_24hr_RBC > 0, "Transfusion", "No Transfusion")),
     alive_12m = factor(ALIVE_12MTHS_YN, levels = c("N", "Y"), labels = c("No", "Yes")),
+    Massive_Transfusion = as.factor(Massive_Transfusion)
     
   )
 
@@ -661,18 +663,87 @@ q2_summary <- tbl_summary(
 
 q2_summary
 
-# Mortality rate by transfusion status 
-ggplot(data3, aes(x = transfusion_status, fill = factor(death))) +
-  geom_bar(position = "stack") + 
-  scale_fill_manual(
-    values = c("0" = "skyblue", "1" = "maroon"),  
-    labels = c("Alive", "Dead")) +
+outcomes_summary <- data3 %>%
+  summarise(
+    mean_ICU_LOS = mean(ICU_LOS, na.rm = TRUE),           
+    median_ICU_LOS = median(ICU_LOS, na.rm = TRUE),       
+    sd_ICU_LOS = sd(ICU_LOS, na.rm = TRUE),                
+    skew_ICU_LOS = skewness(ICU_LOS, na.rm = TRUE),        
+    iqr_ICU_LOS = IQR(ICU_LOS, na.rm = TRUE),              
+    
+    mean_HOSPITAL_LOS = mean(HOSPITAL_LOS, na.rm = TRUE),  
+    median_HOSPITAL_LOS = median(HOSPITAL_LOS, na.rm = TRUE), 
+    sd_HOSPITAL_LOS = sd(HOSPITAL_LOS, na.rm = TRUE),      
+    skew_HOSPITAL_LOS = skewness(HOSPITAL_LOS, na.rm = TRUE),
+    iqr_HOSPITAL_LOS = IQR(HOSPITAL_LOS, na.rm = TRUE)    
+  )
+
+print(outcomes_summary)
+
+blood_product_summary <- tbl_summary(
+  data3,
+  by = transfusion_status,  
+  missing = "ifany",        
+  statistic = list(
+    all_continuous() ~ "{mean} ({sd})",  
+    all_categorical() ~ "{n} ({p}%)"    
+  ),
+  label = list(  
+    Massive_Transfusion ~ "Massive Transfusion (≥10 RBC Units)",
+    Total_24hr_RBC ~ "Total RBCs in 24 Hours",
+    RBC_72hr_Total ~ "Total RBCs in 72 Hours",
+    FFP_72hr_Total ~ "Total FFP in 72 Hours",
+    Plt_72hr_Total ~ "Total Platelets in 72 Hours",
+    Cryo_72hr_Total ~ "Total Cryoprecipitate in 72 Hours",
+    Intra_Fresh_Frozen_Plasma ~ "Intraoperative Fresh Frozen Plasma",
+    Intra_Packed_Cells ~ "Intraoperative Packed Cells",
+    Intra_PCC_Octaplex ~ "Intraoperative PCC/Octaplex",
+    Intra_Platelets ~ "Intraoperative Platelets",
+    Intra_Cryoprecipitate ~ "Intraoperative Cryoprecipitate"
+  ),
+  include = c(
+    Massive_Transfusion, Total_24hr_RBC, RBC_72hr_Total, FFP_72hr_Total, 
+    Plt_72hr_Total, Cryo_72hr_Total, Intra_Fresh_Frozen_Plasma, Intra_Packed_Cells,
+    Intra_PCC_Octaplex, Intra_Platelets, Intra_Cryoprecipitate
+  )
+) %>%
+  add_p() %>%            # Add p-values to compare groups
+  italicize_levels() %>%
+  bold_labels()
+
+blood_product_summary
+
+# Distribution of transfusion status in bar plot
+ggplot(data3, aes(x = transfusion_status, fill = transfusion_status)) +
+  geom_bar() +
+  scale_fill_manual(values = c("skyblue", "lightpink")) +  
   labs(
-    title = "Mortality Rate by Transfusion Status",
+    title = "Distribution of Transfusion Status",
     x = "Transfusion Status",
-    y = "Proportion",
-    fill = ""
+    y = "Count",
+    fill = "Transfusion Status"
   ) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 14),
+    plot.title = element_text(hjust = 0.5),  
+    legend.position = "none"  # Remove legend if unnecessary
+  )
+
+# Mortality rate by transfusion status 
+ggplot(data3, aes(x = factor(death), fill = factor(death))) +
+  geom_bar(position = "dodge") +
+  scale_fill_manual(
+    values = c("0" = "skyblue", "1" = "lightpink"),
+    labels = c("Alive", "Dead")
+  ) +
+  labs(
+    title = "Distribution of Death by Transfusion Status",
+    x = "Death Status",
+    y = "Count",
+    fill = "Outcome"
+  ) +
+  facet_wrap(~ transfusion_status) +
   theme_minimal() +
   theme(legend.position = "right")
 
@@ -690,7 +761,11 @@ title("Kaplan-Meier Curve: Survival from Operation Date")
 # Stratified KM Curve by Transfusion Status
 sf2 <- survfit(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
 
-# Plot stratified KM curve
+plot(sf2, xlab = "Time from Operation Date (days)", ylab = "Survival Probability", col=1:2)
+legend("bottomright",legend = c("No Transfusion", "Transfusion"), lty = 1, col = 1:2)
+title("Stratified Kaplan-Meier Curve: Survival from Operation Date")
+
+# Plot stratified KM curve using survmine function 
 ggsurvplot(
   sf2,
   data = data3,
@@ -699,18 +774,45 @@ ggsurvplot(
   ylab = "Survival Probability",
   legend.title = "Transfusion Status",
   legend.labs = c("No Transfusion", "Transfusion"),
+  palette = c("skyblue", "lightpink"),
+  censor = TRUE
+)
+
+# Plot stratified KM curve, capped at 365 days
+ggsurvplot(
+  sf2,
+  data = data3,
+  title = "Survival by Transfusion Status",
+  xlab = "Time from Operation Date (days)",
+  ylab = "Survival Probability",
+  xlim = c(0, 365),
+  legend.title = "Transfusion Status",
+  legend.labs = c("No Transfusion", "Transfusion"),
+  palette = c("skyblue", "lightpink")
+)
+
+# Plot stratified KM curve, past at 365 days
+ggsurvplot(
+  sf2,
+  data = data3,
+  title = "Survival by Transfusion Status",
+  xlab = "Time from Operation Date (days)",
+  ylab = "Survival Probability",
+  xlim = c(365,700),
+  legend.title = "Transfusion Status",
+  legend.labs = c("No Transfusion", "Transfusion"),
   palette = c("skyblue", "lightpink")
 )
 
 # Log-rank test for survival differences by transfusion status
-logrank <- survdiff(Surv(or_death_diff, death) ~ transfusion_status, data = data3)
+logrank <- survdiff(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3)
 print(logrank)
 
 # Check PH assumption using cloglog
 plot(
   survfit(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3),
   fun = "cloglog",
-  main = "Complementary Log-Log Survival Plot by Transfusion Status", 
+  main = "", 
   xlab = "Time from Operation Date", 
   ylab = "Complementary Log-Log Survival Probability",
   col=1:3)
@@ -724,6 +826,18 @@ print(coxmodsummary)
 # Patients who received transfusions had a 1.3x higher or 30% higher hazard of death
 # compared to those who did not receive transfusions
 
+# Expanded Cox PH model
+coxmod2 <- coxph(Surv(or_death_diff, death == 1) ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
+                   FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
+                   Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
+                   Intra_Platelets + Intra_Cryoprecipitate + gender + Age + BMI + Redo_Lung_Transplant +
+                   Hypertension + ECLS_ECMO + Intraoperative_ECLS + Fluid_Balance + Pre_Hb, data = data3)
+
+# Include hypertension and ECLS_ECMO 
+
+coxmodsummary2 <- summary(coxmod2) 
+print(coxmodsummary2)
+
 ################################
 ## Logistic Regression Models ##
 ################################
@@ -733,7 +847,7 @@ log_model_death <- glm(
   death ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
     FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
     Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
-    Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI,
+    Intra_Platelets + Intra_Cryoprecipitate + gender + Age + BMI,
   data = data3,
   family = binomial
 )
@@ -741,7 +855,7 @@ log_model_death <- glm(
 summary(log_model_death)
 
 # Stepwise AIC for best predictors
-best_log_model_death <- stepAIC(log_model_death, direction = "both")
+best_log_model_death <- stepAIC(log_model_death, direction = "backward")
 summary(best_log_model_death)
 
 # Check for multicolinearity 
@@ -752,7 +866,7 @@ full_log_alive12m <- glm(
   alive_12m ~ transfusion_status + Massive_Transfusion + Total_24hr_RBC + RBC_72hr_Total +
     FFP_72hr_Total + Plt_72hr_Total + Cryo_72hr_Total +
     Intra_Fresh_Frozen_Plasma + Intra_Packed_Cells + Intra_PCC_Octaplex + 
-    Intra_Platelets + Intra_Cryoprecipitate + gender + Height + Weight + Age + BMI,
+    Intra_Platelets + Intra_Cryoprecipitate + gender + Age + BMI,
   data = data3,
   family = binomial
 )
@@ -760,7 +874,7 @@ full_log_alive12m <- glm(
 summary(full_log_alive12m) 
 
 # Stepwise AIC for best predictors
-best_model_alive12m <- stepAIC(full_log_alive12m, direction = "both")
+best_model_alive12m <- stepAIC(full_log_alive12m, direction = "backward")
 summary(best_model_alive12m)
 
 ####################################
@@ -846,6 +960,23 @@ wilcox_hospital <- wilcox.test(HOSPITAL_LOS ~ transfusion_status, data = data3)
 # Print Wilcoxon test results
 print(wilcox_icu)
 print(wilcox_hospital)
+
+# Evaluate median between LOS groups 
+data3 %>%
+  group_by(transfusion_status) %>%
+  summarize(
+    median_hospital_los = median(HOSPITAL_LOS, na.rm = TRUE),
+    mean_hospital_los = mean(HOSPITAL_LOS, na.rm = TRUE),
+    count = n()
+  )
+
+data3 %>%
+  group_by(transfusion_status) %>%
+  summarize(
+    median_icu_los = median(ICU_LOS, na.rm = TRUE),
+    mean_icu_los = mean(ICU_LOS, na.rm = TRUE),
+    count = n()
+  )
 
 # Boxplots for LOS by Transfusion Status
 ggplot(data3, aes(x = transfusion_status, y = ICU_LOS, fill = transfusion_status)) +
