@@ -791,7 +791,7 @@ ggplot(data3, aes(x = transfusion_status, fill = transfusion_status)) +
   theme_minimal() +
   theme(
     text = element_text(size = 14),
-    plot.title = element_text(hjust = 0.5, face = "bold"),  
+    plot.title = element_text(hjust = 0.5),  
     legend.position = "none"  # Remove legend if unnecessary
   )
 
@@ -877,7 +877,7 @@ print(logrank)
 plot(
   survfit(Surv(or_death_diff, death == "1") ~ transfusion_status, data = data3),
   fun = "cloglog",
-  main = "Complementary Log-Log Survival Plot by Transfusion Status", 
+  main = "", 
   xlab = "Time from Operation Date", 
   ylab = "Complementary Log-Log Survival Probability",
   col=1:3)
@@ -1044,12 +1044,42 @@ data3 %>%
   )
 
 # Boxplots for LOS by Transfusion Status
+# ICU Length of Stay by Transfusion Status
 ggplot(data3, aes(x = transfusion_status, y = ICU_LOS, fill = transfusion_status)) +
   geom_boxplot() +
-  labs(title = "ICU Length of Stay by Transfusion Status", x = "Transfusion Status", y = "ICU LOS (days)") +
-  theme_minimal()
+  scale_fill_manual(values = c("skyblue", "lightpink")) +  # Custom colors
+  labs(
+    title = "ICU Length of Stay by Transfusion Status", 
+    x = "Transfusion Status", 
+    y = "ICU LOS (days)"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),  # Remove gridlines
+    panel.background = element_rect(fill = "white"),  # Set background to white
+    plot.margin = margin(20, 20, 40, 20),  # Adjust plot margins (top, right, bottom, left)
+    axis.text = element_text(size = 12),  # Adjust axis text size
+    axis.title = element_text(size = 14),  # Adjust axis title size
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)  # Center and enlarge title
+  ) +
+  coord_cartesian(clip = "off")  # Prevent clipping at the margins
 
+# Hospital Length of Stay by Transfusion Status
 ggplot(data3, aes(x = transfusion_status, y = HOSPITAL_LOS, fill = transfusion_status)) +
   geom_boxplot() +
-  labs(title = "Hospital Length of Stay by Transfusion Status", x = "Transfusion Status", y = "Hospital LOS (days)") +
-  theme_minimal()
+  scale_fill_manual(values = c("skyblue", "lightpink")) +  # Custom colors
+  labs(
+    title = "Hospital Length of Stay by Transfusion Status", 
+    x = "Transfusion Status", 
+    y = "Hospital LOS (days)"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),  # Remove gridlines
+    panel.background = element_rect(fill = "white"),  # Set background to white
+    plot.margin = margin(20, 20, 40, 20),  # Adjust plot margins (top, right, bottom, left)
+    axis.text = element_text(size = 12),  # Adjust axis text size
+    axis.title = element_text(size = 14),  # Adjust axis title size
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)  # Center and enlarge title
+  ) +
+  coord_cartesian(clip = "off")  # Prevent clipping at the margins
