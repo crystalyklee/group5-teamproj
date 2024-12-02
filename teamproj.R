@@ -309,19 +309,21 @@ grid.arrange(grobs = plot_list_2, ncol = 2)
 
 plot_list_3 <- list()
 
-intra_vars <- c("Intra_Albumin_5_mL_", "Intra_Crystalloid_mL_", "Intra_Cell_Saver_returned_mL_", "Blood_Loss", "Fluid_Balance")
+intra_vars <- c("Intra_Albumin_5_mL_", "Intra_Crystalloid_mL_", "Intra_Cell_Saver_returned_mL_", "Blood_Loss", "Fluid_Balance", "Total_24hr_RBC")
 
 title_hist_intra<- c("Intra_Albumin_5_mL_" = "Distribution of Intraoperative Albumin \nAdministered",
                    "Intra_Crystalloid_mL_" = "Distribution of Intraoperative Crystalloid \nAdministered",
                    "Intra_Cell_Saver_returned_mL_" = "Distribution of Intraoperative Cell Saver Volume \nReturned",
                    "Blood_Loss" = "Distribution of Intraoperative Blood Loss",
-                   "Fluid_Balance" = "Distribution of Intraoperative Fluid Balance")
+                   "Fluid_Balance" = "Distribution of Intraoperative Fluid Balance",
+                   "Total_24hr_RBC" = "Number of RBCs Transfused within 24 Hours \nof Surgery")
 
 x_lab_hist_intra <- c("Intra_Albumin_5_mL_" = "Intraoperative Albumin Administered 5% (mL)",
                     "Intra_Crystalloid_mL_" = "Intraoperative Crystalloid Administered (mL)",
                     "Intra_Cell_Saver_returned_mL_" = "Intraoperative Cell Saver Volume Returned (mL)",
                     "Blood_Loss" = "Intraoperative Blood Loss (mL)",
-                    "Fluid_Balance" = "Intraoperative Fluid Balance (mL)")
+                    "Fluid_Balance" = "Intraoperative Fluid Balance (mL)",
+                    "Total_24hr_RBC" = "Number of RBCs Transfused")
 
 
 for(var in intra_vars) {
@@ -474,6 +476,19 @@ ggplot(model.eval, aes(x = trial, y = auc, fill = model)) +
     x = "Trial",
     y = "AUC"
   )+
+  theme_classic()
+
+ggplot(model.eval, aes(x = trial, y = auc, fill = model)) +
+  geom_bar(stat = "identity", position = position_dodge(), color = "black") +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_fill_manual(
+    values = c("Lasso" = "#0f599a", "Pruned Tree" = "#1E9AD6", "Unpruned Tree" = "lightblue") # Replace with your model names and desired colors
+  ) +
+  labs(
+    x = "Trial",
+    y = "AUC",
+    fill = "Model"
+  ) +
   theme_classic()
 
 # It seems the lasso classification model is consistently better than the tree models
@@ -984,12 +999,19 @@ print(wilcox_icu)
 print(wilcox_hospital)
 
 # Boxplots for LOS by Transfusion Status
-ggplot(data3, aes(x = transfusion_status, y = ICU_LOS, fill = transfusion_status)) +
+ggplot(data3, aes(x = transfusion_status, y = log(ICU_LOS), fill = transfusion_status)) +
   geom_boxplot() +
-  labs(title = "ICU Length of Stay by Transfusion Status", x = "Transfusion Status", y = "ICU LOS (days)") +
-  theme_minimal()
+  scale_fill_manual(values = c("skyblue", "lightpink")) +
+  labs(title = "ICU Length of Stay by Transfusion Status", 
+       x = "Transfusion Status", 
+       y = "Log ICU LOS (days)", 
+       fill = "Log Transfusion Status") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
 
-ggplot(data3, aes(x = transfusion_status, y = HOSPITAL_LOS, fill = transfusion_status)) +
+ggplot(data3, aes(x = transfusion_status, y = log(HOSPITAL_LOS), fill = transfusion_status)) +
   geom_boxplot() +
-  labs(title = "Hospital Length of Stay by Transfusion Status", x = "Transfusion Status", y = "Hospital LOS (days)") +
-  theme_minimal()
+  scale_fill_manual(values = c("skyblue", "lightpink"))+
+  labs(title = "Hospital Length of Stay by Transfusion Status", x = "Transfusion Status", y = " Log Hospital LOS (days)", fill = "Tranfusion Status") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))  
